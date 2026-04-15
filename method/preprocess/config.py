@@ -1,0 +1,124 @@
+from dataclasses import dataclass, field
+from typing import Self, get_type_hints, Any
+from enum import StrEnum
+
+from method.core.config_base import SwitchConfig, BaseConfig
+from method.core.pipeline import PipelineStepProtocol
+from .filter.config import FilterConfig
+from .intervals.config import IntervalDropperConfig
+from .outliers.config import OutlierRemoverConfig
+from .interp.config import InterpConfig
+from .scaler.config import ScalerConfig
+from .feature_selector.config import SelectorConfig
+from .split.config import SplitterConfig
+
+from .intervals.intervals import IntervalDropper
+from .filter.filter import Filter
+from .outliers.remover import OutlierRemover
+from .interp.interp import Interpolator
+from .scaler.scaler import Scaler
+from .feature_selector.selector import FeatureSelector
+from .split.splitter import Splitter
+
+
+class StepName(StrEnum):
+    DROP_INTERVALS = "drop_intervals"
+    OUTLIERS = "outliers"
+    FILTER = "filter"
+    INTERPOLATION = "interpolation"
+    SPLITTER = "splitter"
+    SCALER = "scaler"
+    FEATURE_SELECTOR = "feature_selector"
+
+
+STEP_NAMES = [s.value for s in StepName]
+
+
+STEPS_CLASS: dict[StepName, Any] = {
+    StepName.DROP_INTERVALS: IntervalDropper,
+    StepName.OUTLIERS: OutlierRemover,
+    StepName.FILTER: Filter,
+    StepName.INTERPOLATION: Interpolator,
+    StepName.SPLITTER: Splitter,
+    StepName.SCALER: Scaler,
+    StepName.FEATURE_SELECTOR: FeatureSelector,
+}
+
+
+DEFAULT_STEPS_ORDER: list[StepName] = [
+    StepName.DROP_INTERVALS,
+    StepName.OUTLIERS,
+    StepName.FILTER,
+    StepName.INTERPOLATION,
+    StepName.SPLITTER,
+    StepName.SCALER,
+    StepName.FEATURE_SELECTOR,
+]
+
+
+@dataclass(frozen=True)
+class StepsConfig(BaseConfig):
+    drop_intervals: IntervalDropperConfig = field(default_factory=IntervalDropperConfig)
+    outliers: OutlierRemoverConfig = field(default_factory=OutlierRemoverConfig)
+    filter: FilterConfig = field(default_factory=FilterConfig)
+    interpolation: InterpConfig = field(default_factory=InterpConfig)
+    scaler: ScalerConfig = field(default_factory=ScalerConfig)
+    feature_selector: SelectorConfig = field(default_factory=SelectorConfig)
+    splitter: SplitterConfig = field(default_factory=SplitterConfig)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Self:
+        build_dict = d.copy()
+        hints = get_type_hints(cls)
+
+        for param in STEP_NAMES:
+            if param in d:
+                inter_type = hints[param]
+                build_dict[param] = inter_type.from_dict(d[param])
+
+        return cls(**build_dict)
+
+    def step_config(self, name: StepName):
+        if name == StepName.DROP_INTERVALS:
+            return self.drop_intervals
+        elif name == StepName.FEATURE_SELECTOR:
+            return self.feature_selector
+        elif name == StepName.FILTER:
+            return self.filter
+        elif name == StepName.INTERPOLATION:
+            return self.interpolation
+        elif name == StepName.OUTLIERS:
+            return self.outliers
+        elif name == StepName.SCALER:
+            return self.scaler
+        elif name == StepName.SPLITTER:
+            return self.splitter
+        else:
+            ValueError("Undefined step name: ", name)
+
+    @staticmethod
+    def step_class(name: StepName):
+        return STEPS_CLASS[name]
+
+
+@dataclass(frozen=True)
+class PreprocessConfig(SwitchConfig):
+    steps_order: list[StepName] = field(default_factory=lambda: DEFAULT_STEPS_ORDER)
+    steps_configs: StepsConfig = field(default_factory=StepsConfig)
+    steps: dict[StepName, Any] = field(init=False, default_factory=dict)
+
+    def __post_init__(self):
+        conf = self.steps_configs
+        create_step = lambda name: (name, conf.step_class(name)(conf.step_config(name)))
+        steps = dict(map(create_step, self.steps_order))
+        object.__setattr__(self, "steps", steps)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Self:
+        build_dict = d.copy()
+        hints = get_type_hints(cls)
+        build_dict["steps_configs"] = StepsConfig.from_dict(d["steps_configs"])
+        return cls(**build_dict)
+
+    def step(self, name: StepName) -> PipelineStepProtocol[Any, Any]:
+        return self.steps[name]

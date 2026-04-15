@@ -1,0 +1,7 @@
+.direnv
+tmp
+logs
+data
+RNNModel.tmp
+**/__pycache__
+__pycache__
