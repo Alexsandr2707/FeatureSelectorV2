@@ -1,83 +1,66 @@
 import logging
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-from typing import cast
+from typing import cast, Self
 
 from .config import ScalerConfig, ScalerType
 from method.core.pipeline import BasePipelineStep
-from method.datasets import Dataset
+from method.datasets import Dataset, DatasetBundle
 from logging_tools.logging_tools import log_method, ClassLogger
 
 
 def get_scaler(dtype: ScalerType):
-    if dtype == "standard":
+    if dtype == ScalerType.STANDARD:
         return StandardScaler()
-    elif dtype == "minmax":
+    elif dtype == ScalerType.MINMAX:
         return MinMaxScaler()
-    elif dtype == "robust":
+    elif dtype == ScalerType.ROBUST:
         return RobustScaler()
     else:
         raise ValueError(f"Unknown scaler type: {dtype}")
 
 
-ScalerInput = Dataset | tuple[Dataset, Dataset]
-ScalerOutput = Dataset | tuple[Dataset, Dataset]
-
-
-class Scaler(BasePipelineStep[ScalerInput, ScalerOutput], ClassLogger):
+class Scaler(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogger):
     def __init__(self, config: ScalerConfig | None = None):
         super().__init__()
         self.config = config or ScalerConfig()
         self.scaler_X = None
         self.scaler_y = None
 
-    def base_transform(self, data: Dataset) -> Dataset:
-        if not self.config.enabled:
-            self.log("Scaler disabled")
-            return data
-
-        X, y = data.copy().data
-
+    @log_method()
+    def fit(self, data: DatasetBundle) -> Self:
+        self.log_params("config", self.config)
         if self.config.X.enabled:
-            self.log_params("Scale X", self.config.X.dtype)
-            self.scaler_X = self.scaler_X or get_scaler(self.config.X.dtype).fit(X)
+            self.scaler_X = get_scaler(self.config.X.dtype).fit(data.train.X)
             self.scaler_X.set_output(transform="pandas")
-            X = self.scaler_X.transform(X)
-            X = cast(pd.DataFrame, X)
-        else:
-            self.log("Not scaling X")
-
         if self.config.y.enabled:
-            self.log_params("Scale y", self.config.y.dtype)
-            self.scaler_y = self.scaler_y or get_scaler(self.config.X.dtype).fit(y)
+            self.scaler_y = get_scaler(self.config.y.dtype).fit(data.train.y)
             self.scaler_y.set_output(transform="pandas")
-            y = self.scaler_y.fit_transform(y)
-            y = cast(pd.DataFrame, y)
-        else:
-            self.log("Not scaling y")
 
-        return Dataset(X, y)
+        return self
+
+    def transform_dataset(self, data: Dataset) -> Dataset:
+        data = data.replace(
+            new_X_scaler=self.scaler_X,
+            new_y_scaler=self.scaler_y,
+        )
+
+        data = data.scale(
+            scale_X=self.config.X.enabled,
+            scale_y=self.config.y.enabled,
+            safe=False,
+        )
+
+        return data
 
     @log_method()
-    def transform(
-        self,
-        data: ScalerInput,
-    ) -> ScalerOutput:
-        self.log("Scaling train data")
-        if isinstance(data, tuple):
-            data_train, data_valid = data
-        else:
-            data_train, data_valid = data, None
+    def transform(self, data: DatasetBundle) -> DatasetBundle:
+        if not self.config.enabled:
+            self.log("scaler disabled", level=logging.WARNING)
+            return data
 
-        data_train = self.base_transform(data_train)
-        result = data_train
+        train_fn = lambda x: self.transform_dataset(x)
+        valid_fn = lambda x: self.transform_dataset(x)
+        data = data.transform(train_fn=train_fn, valid_fn=valid_fn)
 
-        if data_valid is not None:
-            self.log("Scaling validation data")
-            data_valid = self.base_transform(data_valid)
-            result = data_train, data_valid
-        else:
-            self.log("Validation data not provided")
-
-        self.log("Scaling completed", level=logging.INFO)
-        return result
+        return data

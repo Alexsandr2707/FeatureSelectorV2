@@ -1,13 +1,14 @@
+import pandas as pd
 from dataclasses import dataclass, field
 from typing import Self, get_type_hints, Literal
-from method.core.config_base import BaseConfig
 
-ModelType = Literal["rnn"]
+from method.core.config_base import BaseConfig
+from method.core.pipeline import BasePipelineStep
+from method.datasets import Dataset
 
 
 @dataclass(frozen=True)
-class ModelConfig(BaseConfig):
-    model_type: ModelType = "rnn"
+class BaseModelConfig(BaseConfig):
     trainer: BaseConfig = field(default_factory=BaseConfig)
     model: BaseConfig = field(default_factory=BaseConfig)
 

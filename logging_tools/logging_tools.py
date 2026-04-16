@@ -3,6 +3,8 @@ from functools import wraps
 from rich.pretty import pretty_repr
 from typing import Any
 import textwrap
+import time
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -11,29 +13,36 @@ FUNC_FORMAT = "%s"
 METHOD_FORMAT = CLASS_FORMAT + "." + FUNC_FORMAT
 
 
+@dataclass
+class ExecContext:
+    run_id: str
+    path: str
+    depth: str
+
+
 def log_method(level=logging.DEBUG):
     def decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            name = self.__class__.__name__
-            logger.log(level, "=" * 50)
-            logger.log(
-                level,
-                CLASS_FORMAT + ": START " + METHOD_FORMAT,
-                name,
-                name,
-                func.__name__,
-            )
-            result = func(self, *args, **kwargs)
-            logger.log(
-                level,
-                CLASS_FORMAT + ": END " + METHOD_FORMAT,
-                name,
-                name,
-                func.__name__,
-            )
-            logger.log(level, "=" * 50)
+            logger = getattr(self, "logger", None)
+            if logger is None:
+                logger = logging.getLogger(self.__class__.__module__)
 
+            cls_name = self.__class__.__name__
+            method_name = func.__name__
+
+            logger.log(level, METHOD_FORMAT + " start", cls_name, method_name)
+            start = time.perf_counter()
+            result = func(self, *args, **kwargs)
+            duration = time.perf_counter() - start
+
+            logger.log(
+                level,
+                METHOD_FORMAT + " end (%.2f)s",
+                cls_name,
+                method_name,
+                duration,
+            )
             return result
 
         return wrapper
@@ -43,7 +52,7 @@ def log_method(level=logging.DEBUG):
 
 def make_obj_logger(self):
     def log(msg: str, *args, level: int = logging.DEBUG, **kwargs):
-        msg = CLASS_FORMAT + ": " + msg
+        msg = CLASS_FORMAT + " " + msg
         logger.log(level, msg, self.__class__.__name__, *args, **kwargs)
 
     return log
@@ -53,7 +62,7 @@ def make_obj_params_logger(self):
     log = make_obj_logger(self)
 
     def log_params(msg: str, *params: Any, level=logging.DEBUG):
-        params = tuple(map(lambda p: pretty_repr(p), params))
+        # params = tuple(map(lambda p: pretty_repr(p), params))
         format = "\n" + "\n".join(["%s"] * len(params))
         ident = " " * 4
         text = textwrap.indent(format % params, ident)

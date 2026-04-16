@@ -1,11 +1,9 @@
-import pandas as pd
-import numpy as np
 import logging
-from rich.pretty import pretty_repr
+from typing import Self
 
 from .config import SelectorConfig
 from .pls import PLSTransformer
-from method.datasets import Dataset
+from method.datasets import Dataset, DatasetBundle
 from method.core.pipeline import BasePipelineStep
 from logging_tools.logging_tools import ClassLogger, log_method
 
@@ -20,42 +18,37 @@ def get_selector(config: SelectorConfig):
         raise ValueError(f"Unknown selector type: {config.dtype}")
 
 
-SelectorInput = Dataset | tuple[Dataset, Dataset]
-SelectorOutput = Dataset | tuple[Dataset, Dataset]
-
-
-class FeatureSelector(BasePipelineStep[SelectorInput, SelectorOutput], ClassLogger):
+class FeatureSelector(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogger):
     def __init__(self, config: SelectorConfig | None = None):
         super().__init__()
         self.config = config or SelectorConfig()
-        self.selector = get_selector(self.config)
+        self.selector = None
 
     @log_method()
-    def transform(self, data: SelectorInput) -> SelectorOutput:
+    def fit(self, data: DatasetBundle) -> Self:
+        self.log_params("selector params", self.config)
+        self.selector = get_selector(self.config)
+        self.selector.fit(*data.train.data)
+        self.log_params("selected features", data.train.X.columns.tolist())
+        return self
+
+    @log_method()
+    def transform(self, data: DatasetBundle) -> DatasetBundle:
         if not self.config.enabled:
-            self.log("Selector disabled")
+            self.log("selector disabled", level=logging.WARNING)
             return data
 
-        if isinstance(data, tuple):
-            data_train, data_valid = data[0].copy(), data[1].copy()
-        else:
-            data_train, data_valid = data.copy(), None
+        if self.selector is None:
+            raise ValueError("Selector not initialized, make fit first")
 
-        self.log_params("Selector params", self.config)
+        def fn(data: Dataset) -> Dataset:
+            return data.replace(
+                new_X=self.selector.transform(data.X),  # type: ignore
+                make_copy=False,
+            )
 
-        X_train, y_train = data_train.data
-        self.selector.fit(X_train, y_train)
-        X_train, y_train = self.selector.transform(X_train, y_train)
-        data_train = Dataset(X_train, y_train)
+        data = data.copy()
+        data = data.transform(train_fn=fn, valid_fn=fn)
 
-        self.log_params("Result shapes X_train, y_train", data_train.notna_count())
-        self.log_params(
-            "Selected features", *data_train.X.columns.tolist(), level=logging.INFO
-        )
-
-        if data_valid is not None:
-            X_valid, y_valid = self.selector.transform(*data_valid.data)
-            data_valid = Dataset(X_valid, y_valid)
-            return (data_train, data_valid)
-        else:
-            return data_train
+        self.log_params("result stats", *data.stats())
+        return data

@@ -1,14 +1,19 @@
 from dataclasses import dataclass, field
 from typing import Literal
+from enum import StrEnum
 
 from method.core.config_base import SwitchConfig, XyConfig
 
-ScalerType = Literal["standard", "minmax", "robust"]
+
+class ScalerType(StrEnum):
+    STANDARD = "standard"
+    MINMAX = "minmax"
+    ROBUST = "robust"
 
 
 @dataclass(frozen=True)
 class ScalerParams(SwitchConfig):
-    dtype: ScalerType = "standard"
+    dtype: ScalerType = ScalerType.STANDARD
 
 
 @dataclass(frozen=True)

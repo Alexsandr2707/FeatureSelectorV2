@@ -15,7 +15,6 @@
         matplotlib
         torch
         scikit-learn
-        pydantic
 
         rich
         openpyxl

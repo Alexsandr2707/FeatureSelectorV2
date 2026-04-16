@@ -17,17 +17,18 @@ def _plot(
     color: str = "blue",
     lw=0.7,
     alpha=0.7,
+    s=10,
     **kwargs,
 ):
     if plot_type == "plot":
         ax.plot(x, y, color=color, lw=lw, **kwargs)
     elif plot_type == "scatter":
-        ax.scatter(x, y, color=color, s=10, alpha=alpha, **kwargs)
+        ax.scatter(x, y, color=color, s=s, alpha=alpha, **kwargs)
     elif plot_type == "hist":
         ax.hist(y, color=color, **kwargs)
     elif plot_type == "plot_scatter":
         ax.plot(x, y, color=color, lw=lw, **kwargs)
-        ax.scatter(x, y, color=color, s=10, alpha=0.5)
+        ax.scatter(x, y, color=color, s=s, alpha=0.5)
     else:
         raise ValueError(f"Unsupported plot type: {plot_type}")
 
@@ -70,13 +71,29 @@ def plot_data(
         else:
             short_name = name if len(name) <= 10 else "..." + name[-10:]
             axs[i, j].set_title(short_name)
-            axs[i, j].set_xticks([])
-            axs[i, j].set_yticks([])
+            axs[i, j].grid(which="major")
+            axs[i, j].tick_params("x", rotation=20)
 
     for num in range(ax_count, nrows * ncols):
         i, j = divmod(num, ncols)
         axs[i, j].set_visible(False)
 
+    plt.show()
+
+
+def plot_data_compare(
+    data_raw: pd.DataFrame,
+    data_prep: pd.DataFrame,
+    title: str | None = None,
+):
+    # Plot all features
+    fig, ax = plt.subplots(figsize=DEFAULT_FIG_SIZE)
+    if title is not None:
+        fig.suptitle(title, fontsize=16)
+
+    _plot(ax, data_prep.index, data_prep, plot_type="plot", color="blue")
+    _plot(ax, data_raw.index, data_raw, plot_type="scatter", color="red", s=5)
+    ax.grid(which="major")
     plt.show()
 
 
@@ -110,7 +127,6 @@ def plot_results(result: dict[str, pd.DataFrame]):
     valid_residuals = result["valid"]["true"] - result["valid"]["pred"]
 
     _plot(ax2, result["valid"]["true"], valid_residuals, "scatter", alpha=0.5)
-    # ax2.scatter(result["valid"]["true"], valid_residuals, alpha=0.5)
     ax2.axhline(0)  # zero line
     ax2.set_xlabel("Predicted values")
     ax2.set_ylabel("Residuals")

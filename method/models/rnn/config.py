@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
-from method.core.config_base import BaseConfig, GroupConfig, XyConfig, SwitchConfig
-from ..config_base import ModelConfig, ModelType
+from method.core.config_base import BaseConfig
+from ..base import BaseModelConfig
 
 
 @dataclass(frozen=True)
@@ -22,6 +22,6 @@ class RNNTrainerParams(BaseConfig):
 
 
 @dataclass(frozen=True)
-class RNNConfig(ModelConfig):
+class RNNConfig(BaseModelConfig):
     trainer: RNNTrainerParams = field(default_factory=RNNTrainerParams)
     model: RNNParams = field(default_factory=RNNParams)
