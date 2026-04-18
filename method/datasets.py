@@ -158,13 +158,13 @@ class Dataset:
         self,
         scale_X: bool = False,
         scale_y: bool = False,
-        how: Literal["stright", "inverse"] = "stright",
+        how: Literal["straight", "inverse"] = "straight",
         safe: bool = True,
     ) -> Self:
         def get_scale_func(scaler: Any, use_scaler: bool, how: str):
             if scaler is None or not use_scaler:
                 return lambda x: x
-            if how == "stright":
+            if how == "straight":
                 return scaler.transform
             elif how == "inverse":
                 return scaler.inverse_transform
@@ -305,7 +305,7 @@ class DatasetBundle:
         self,
         scale_X: bool = False,
         scale_y: bool = False,
-        how: Literal["stright", "inverse"] = "stright",
+        how: Literal["straight", "inverse"] = "straight",
         safe: bool = True,
     ) -> Self:
         train, valid = self.data

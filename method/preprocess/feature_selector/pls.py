@@ -137,7 +137,7 @@ class PLSTransformer(TransformerMixin):
         else:
             return X[self.feature_names_out_], y
 
-    def get_feature_names_out(self, X, y):
+    def get_feature_names_out(self, X=None, y=None):
         return self.feature_names_out_
 
     def to_json(self, crop_height=False):

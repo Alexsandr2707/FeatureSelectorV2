@@ -11,6 +11,9 @@ from .interp.config import InterpConfig
 from .scaler.config import ScalerConfig
 from .feature_selector.config import SelectorConfig
 from .split.config import SplitterConfig
+from .differ.config import DifferConfig
+from .smoother.config import SmootherConfig
+from .shifter.config import ShifterConfig
 
 from .intervals.intervals import IntervalDropper
 from .filter.filter import Filter
@@ -19,9 +22,14 @@ from .interp.interp import Interpolator
 from .scaler.scaler import Scaler
 from .feature_selector.selector import FeatureSelector
 from .split.splitter import Splitter
+from .differ.differ import Differ
+from .smoother.smoother import Smoother
+from .shifter.shifter import Shifter
 
 
 class StepName(StrEnum):
+    DIFFER = "differ"
+    SMOOTHER = "smoother"
     DROP_INTERVALS = "drop_intervals"
     OUTLIERS = "outliers"
     FILTER = "filter"
@@ -29,12 +37,15 @@ class StepName(StrEnum):
     SPLITTER = "splitter"
     SCALER = "scaler"
     FEATURE_SELECTOR = "feature_selector"
+    SHIFTER = "shifter"
 
 
 STEP_NAMES = [s.value for s in StepName]
 
 
 STEPS_CLASS: dict[StepName, Any] = {
+    StepName.SMOOTHER: Smoother,
+    StepName.DIFFER: Differ,
     StepName.DROP_INTERVALS: IntervalDropper,
     StepName.OUTLIERS: OutlierRemover,
     StepName.FILTER: Filter,
@@ -42,14 +53,18 @@ STEPS_CLASS: dict[StepName, Any] = {
     StepName.SPLITTER: Splitter,
     StepName.SCALER: Scaler,
     StepName.FEATURE_SELECTOR: FeatureSelector,
+    StepName.SHIFTER: Shifter,
 }
 
 
 DEFAULT_STEPS_ORDER: list[StepName] = [
+    StepName.SHIFTER,
     StepName.DROP_INTERVALS,
+    StepName.DIFFER,
     StepName.OUTLIERS,
     StepName.FILTER,
     StepName.INTERPOLATION,
+    StepName.SMOOTHER,
     StepName.SPLITTER,
     StepName.SCALER,
     StepName.FEATURE_SELECTOR,
@@ -65,6 +80,9 @@ class StepsConfig(BaseConfig):
     scaler: ScalerConfig = field(default_factory=ScalerConfig)
     feature_selector: SelectorConfig = field(default_factory=SelectorConfig)
     splitter: SplitterConfig = field(default_factory=SplitterConfig)
+    differ: DifferConfig = field(default_factory=DifferConfig)
+    smoother: SmootherConfig = field(default_factory=SmootherConfig)
+    shifter: ShifterConfig = field(default_factory=ShifterConfig)
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
@@ -79,7 +97,11 @@ class StepsConfig(BaseConfig):
         return cls(**build_dict)
 
     def step_config(self, name: StepName):
-        if name == StepName.DROP_INTERVALS:
+        if name == StepName.SMOOTHER:
+            return self.smoother
+        elif name == StepName.DIFFER:
+            return self.differ
+        elif name == StepName.DROP_INTERVALS:
             return self.drop_intervals
         elif name == StepName.FEATURE_SELECTOR:
             return self.feature_selector
@@ -93,8 +115,10 @@ class StepsConfig(BaseConfig):
             return self.scaler
         elif name == StepName.SPLITTER:
             return self.splitter
+        elif name == StepName.SHIFTER:
+            return self.shifter
         else:
-            ValueError("Undefined step name: ", name)
+            raise ValueError("Undefined step name: ", name)
 
     @staticmethod
     def step_class(name: StepName):
@@ -117,7 +141,8 @@ class PreprocessConfig(SwitchConfig):
     def from_dict(cls, d: dict) -> Self:
         build_dict = d.copy()
         hints = get_type_hints(cls)
-        build_dict["steps_configs"] = StepsConfig.from_dict(d["steps_configs"])
+        step_config = hints["steps_configs"]
+        build_dict["steps_configs"] = step_config.from_dict(d["steps_configs"])
         return cls(**build_dict)
 
     def step(self, name: StepName) -> PipelineStepProtocol[Any, Any]:

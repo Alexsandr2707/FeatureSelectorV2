@@ -12,6 +12,7 @@ EXECUTE_CONFIG = {
             "drop_intervals",
             "filter",
             "interpolation",
+            "smoother",
             "scaler",
             "feature_selector",
             "splitter",
@@ -32,29 +33,35 @@ EXECUTE_CONFIG = {
             },
             "interpolation": {
                 "enabled": True,
-                "X": {"enabled": False},
+                "X": {
+                    "enabled": False,
+                },
                 "y": {
                     "enabled": True,
                     "freq": "1h",
                     "params": {
                         "method": "spline",
                         "order": 3,
-                        "limit": 3,
+                        "limit": 48,
                         "limit_area": "inside",
                         "limit_direction": "both",
                     },
                 },
             },
+            "smoother": {
+                "enabled": True,
+                "X": {"enabled": True, "params": {"limit": 12}},
+                "y": {"enabled": True, "params": {"limit": 24}},
+            },
             "scaler": {
                 "enabled": True,
-                "X": {"enabled": True, "dtype": "robust"},
-                "y": {"enabled": True, "dtype": "robust"},
+                "X": {"enabled": True, "dtype": "standard"},
+                "y": {"enabled": True, "dtype": "standard"},
             },
             "feature_selector": {
                 "enabled": True,
                 "dtype": "static",
                 "params": {
-                    # same as pls with pls_depth=3
                     "select_features": [
                         "81TI10143",
                         "81TI10126",
@@ -65,6 +72,12 @@ EXECUTE_CONFIG = {
                         "81FI30052",
                         "81TI10123",
                     ],
+                    # "select_features": [
+                    #     "81TI10126",
+                    #     "81LILH40012",
+                    #     "81FCL30063",
+                    #     "81FI30052",
+                    # ],
                 },
             },
             "splitter": {
@@ -74,6 +87,7 @@ EXECUTE_CONFIG = {
         },
     },
     "model": {
+        # "model_type": "RNN",
         "trainer": {
             "epochs": 200,
             "batch": 128,

@@ -18,6 +18,7 @@
 
         rich
         openpyxl
+        ipympl 
         ipykernel # only for notebook support
     ]);
   in

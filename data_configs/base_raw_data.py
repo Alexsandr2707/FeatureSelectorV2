@@ -8,6 +8,7 @@ EXECUTE_CONFIG = {
     },
     "preprocess": {
         "steps_order": [
+            "shifter",
             "drop_intervals",
             "filter",
             "scaler",
@@ -15,6 +16,7 @@ EXECUTE_CONFIG = {
             "splitter",
         ],
         "steps_configs": {
+            "shifter": {"enabled": True, "horizon": 1, "freq": "1h"},
             "drop_intervals": {
                 "enabled": True,
                 "intervals": [["2021", "2022-10-16"], ["2023-09-20", "2024"]],
@@ -34,8 +36,20 @@ EXECUTE_CONFIG = {
             },
             "feature_selector": {
                 "enabled": True,
-                "dtype": "pls",
-                "params": {"pls_depth": 3},
+                "dtype": "static",
+                "params": {
+                    # same as pls with pls_depth=3
+                    "select_features": [
+                        "81TI10143",
+                        "81TI10126",
+                        "81FIL30066",
+                        "81LILH40012",
+                        "81TIH11209",
+                        "81FCL30063",
+                        "81FI30052",
+                        "81TI10123",
+                    ],
+                },
             },
             "splitter": {
                 "enabled": True,

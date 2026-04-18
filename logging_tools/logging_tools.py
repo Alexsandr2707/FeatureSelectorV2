@@ -61,12 +61,15 @@ def make_obj_logger(self):
 def make_obj_params_logger(self):
     log = make_obj_logger(self)
 
-    def log_params(msg: str, *params: Any, level=logging.DEBUG):
-        # params = tuple(map(lambda p: pretty_repr(p), params))
-        format = "\n" + "\n".join(["%s"] * len(params))
-        ident = " " * 4
-        text = textwrap.indent(format % params, ident)
-        log(msg + text, level=level)
+    def log_params(msg: str, *params: Any, one_line=True, level=logging.DEBUG):
+        if one_line:
+            format = " " + " | ".join(["%s"] * len(params))
+            log(msg + format, *params, level=level)
+        else:
+            format = "\n" + "\n".join(["%s"] * len(params))
+            ident = " " * 4
+            text = textwrap.indent(format % params, ident)
+            log(msg + text, level=level)
 
     return log_params
 

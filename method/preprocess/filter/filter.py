@@ -41,7 +41,7 @@ class Filter(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogger):
             self.log_params(f"filtering y_{name}", self.config.y.params)
             y = _filter_data(y, self.config.y.params)
 
-        data = Dataset(X, y, make_copy=False).dropna(how="all")
+        data = data.replace(X, y, make_copy=False).dropna(how="all")
         return data
 
     @log_method()

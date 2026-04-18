@@ -43,9 +43,9 @@ class RNN(BasePipelineStep[DatasetBundle, Any], ClassLogger):
             X_valid, y_valid, valid_index = None, None, None
 
         X_train_tensor = torch.tensor(X_train).float()
-        X_valid_tensor = torch.tensor(X_valid).float()
         y_train_tensor = torch.tensor(y_train).float()
-        y_valid_tensor = torch.tensor(y_valid).float()
+        X_valid_tensor = torch.tensor(X_valid).float() if X_valid is not None else None
+        y_valid_tensor = torch.tensor(y_valid).float() if y_valid is not None else None
 
         model = RNNModel(
             features_in=X_train.shape[-1],
