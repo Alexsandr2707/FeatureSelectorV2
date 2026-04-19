@@ -6,11 +6,13 @@ from method.core.config_base import BaseConfig, SwitchConfig, GroupConfig, XyCon
 
 class SmoothMethod(StrEnum):
     MEAN = "mean"
+    LOESS = "loess"
 
 
 @dataclass(frozen=True)
 class SmootherParams(BaseConfig):
     limit: int = 5
+    frac: float = 0.1
 
 
 @dataclass(frozen=True)

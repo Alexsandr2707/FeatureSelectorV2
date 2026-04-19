@@ -23,7 +23,6 @@ EXECUTE_CONFIG = {
                 "enabled": True,
                 "intervals": [["2021", "2022-10-16"], ["2023-09-20", "2024"]],
             },
-            "differ": {"enabled": False, "params": {"how": "add"}},
             "filter": {
                 "enabled": True,
                 "X": {"enabled": False},
@@ -32,31 +31,10 @@ EXECUTE_CONFIG = {
                     "params": {"freq": "1h", "filter_freq": "1W", "max_diff": 30},
                 },
             },
-            "outliers": {
-                "enabled": False,
-                "X": {
-                    "enabled": False,
-                    "scope": "local",
-                    "params": {"dtype": "drop", "window": 24, "k": 1.5},
-                },
-                "y": {
-                    "enabled": False,
-                    "scope": "local",
-                    "params": {"dtype": "clip", "window": 128, "k": 1.5},
-                },
-            },
             "interpolation": {
                 "enabled": True,
                 "X": {
                     "enabled": False,
-                    "freq": "1h",
-                    "params": {
-                        "method": "spline",
-                        "order": 3,
-                        "limit": 24,
-                        "limit_area": "inside",
-                        "limit_direction": "both",
-                    },
                 },
                 "y": {
                     "enabled": True,
@@ -72,7 +50,7 @@ EXECUTE_CONFIG = {
             },
             "smoother": {
                 "enabled": True,
-                "X": {"enabled": False, "params": {"limit": 6}},
+                "X": {"enabled": False},
                 "y": {"enabled": True, "method": "loess", "params": {"frac": 0.005}},
             },
             "scaler": {
@@ -85,21 +63,15 @@ EXECUTE_CONFIG = {
                 "dtype": "static",
                 "params": {
                     # "pls_depth": 3,
-                    # "select_features": [
-                    #     "81TI10143",
-                    #     "81TI10126",
-                    #     "81FIL30066",
-                    #     "81LILH40012",
-                    #     "81TIH11209",
-                    #     "81FCL30063",
-                    #     "81FI30052",
-                    #     "81TI10123",
-                    # ],
                     "select_features": [
+                        "81TI10143",
                         "81TI10126",
+                        "81FIL30066",
                         "81LILH40012",
+                        "81TIH11209",
                         "81FCL30063",
                         "81FI30052",
+                        "81TI10123",
                     ],
                 },
             },
@@ -120,7 +92,7 @@ EXECUTE_CONFIG = {
             "lag": 48,
             "gru": [16, 1],
             "l2": 0.00,
-            "decay": 0.01,
+            "decay": 0.5,
             "lr": 1e-2,
             "min_lr": 1e-2,
         },

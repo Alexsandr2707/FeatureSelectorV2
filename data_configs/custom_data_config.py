@@ -38,24 +38,26 @@ EXECUTE_CONFIG = {
                 "enabled": True,
                 "dtype": "static",
                 "params": {
+                    # same as pls witn pls_depth=0
+                    # "select_features" : ["81LILH40012"],
                     # same as pls with pls_depth=2
-                    "select_features": [
-                        "81TI10126",
-                        "81LILH40012",
-                        "81FCL30063",
-                        "81FI30052",
-                    ],
-                    # same as pls with pls_depth=3
                     # "select_features": [
-                    #     "81TI10143",
                     #     "81TI10126",
-                    #     "81FIL30066",
                     #     "81LILH40012",
-                    #     "81TIH11209",
                     #     "81FCL30063",
                     #     "81FI30052",
-                    #     "81TI10123",
                     # ],
+                    # same as pls with pls_depth=3
+                    "select_features": [
+                        "81TI10143",
+                        "81TI10126",
+                        "81FIL30066",
+                        "81LILH40012",
+                        "81TIH11209",
+                        "81FCL30063",
+                        "81FI30052",
+                        "81TI10123",
+                    ],
                 },
             },
             "splitter": {

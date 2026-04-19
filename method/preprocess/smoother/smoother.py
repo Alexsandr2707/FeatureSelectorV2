@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import logging
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 from .config import SmootherConfig, SmoothMethod, SmootherParams
 from method.datasets import Dataset, DatasetBundle
@@ -15,9 +16,36 @@ def _mean_smooth(df: pd.DataFrame, params: SmootherParams) -> pd.DataFrame:
     return df
 
 
+def _lowess_smooth(
+    y: pd.DataFrame,
+    params: SmootherParams,
+) -> pd.DataFrame:
+
+    x_col = y.index.to_series()
+    y_result = pd.DataFrame(index=y.index, columns=y.columns, dtype=float)
+
+    for col in y.columns:
+        y_col = y.loc[:, col]
+
+        mask = x_col.notna()  # & y_col.notna()
+        smoothed = lowess(
+            endog=y_col[mask],
+            exog=x_col[mask],
+            frac=params.frac,
+            it=0,
+            return_sorted=False,
+        )
+
+        y_result.loc[mask, col] = smoothed
+
+    return y_result
+
+
 def _get_smooth_func(method: SmoothMethod):
     if method == SmoothMethod.MEAN:
         return _mean_smooth
+    elif method == SmoothMethod.LOESS:
+        return _lowess_smooth
     else:
         raise ValueError("Undefined smoothing method")
 

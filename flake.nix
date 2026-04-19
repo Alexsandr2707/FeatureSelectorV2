@@ -15,6 +15,7 @@
         matplotlib
         torch
         scikit-learn
+        statsmodels
 
         rich
         openpyxl

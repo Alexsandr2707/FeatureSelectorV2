@@ -4,30 +4,22 @@ from enum import StrEnum
 
 from method.core.config_base import SwitchConfig, BaseConfig
 from method.core.pipeline import PipelineStepProtocol
-from .filter.config import FilterConfig
-from .intervals.config import IntervalDropperConfig
-from .outliers.config import OutlierRemoverConfig
-from .interp.config import InterpConfig
-from .scaler.config import ScalerConfig
-from .feature_selector.config import SelectorConfig
-from .split.config import SplitterConfig
-from .differ.config import DifferConfig
-from .smoother.config import SmootherConfig
-from .shifter.config import ShifterConfig
 
-from .intervals.intervals import IntervalDropper
-from .filter.filter import Filter
-from .outliers.remover import OutlierRemover
-from .interp.interp import Interpolator
-from .scaler.scaler import Scaler
-from .feature_selector.selector import FeatureSelector
-from .split.splitter import Splitter
-from .differ.differ import Differ
-from .smoother.smoother import Smoother
-from .shifter.shifter import Shifter
+from .intervals.intervals import IntervalDropperConfig, IntervalDropper
+from .filter.filter import FilterConfig, Filter
+from .outliers.remover import OutlierRemoverConfig, OutlierRemover
+from .interp.interp import InterpConfig, Interpolator
+from .scaler.scaler import ScalerConfig, Scaler
+from .feature_selector.selector import SelectorConfig, FeatureSelector
+from .split.splitter import SplitterConfig, Splitter
+from .differ.differ import DifferConfig, Differ
+from .smoother.smoother import SmootherConfig, Smoother
+from .shifter.shifter import ShifterConfig, Shifter
+from .loess.loess import LoessConfig, Loess
 
 
 class StepName(StrEnum):
+    LOESS = "loess"
     DIFFER = "differ"
     SMOOTHER = "smoother"
     DROP_INTERVALS = "drop_intervals"
@@ -50,6 +42,7 @@ STEPS_CLASS: dict[StepName, Any] = {
     StepName.OUTLIERS: OutlierRemover,
     StepName.FILTER: Filter,
     StepName.INTERPOLATION: Interpolator,
+    StepName.LOESS: Loess,
     StepName.SPLITTER: Splitter,
     StepName.SCALER: Scaler,
     StepName.FEATURE_SELECTOR: FeatureSelector,
@@ -64,6 +57,7 @@ DEFAULT_STEPS_ORDER: list[StepName] = [
     StepName.OUTLIERS,
     StepName.FILTER,
     StepName.INTERPOLATION,
+    StepName.LOESS,
     StepName.SMOOTHER,
     StepName.SPLITTER,
     StepName.SCALER,
@@ -83,6 +77,7 @@ class StepsConfig(BaseConfig):
     differ: DifferConfig = field(default_factory=DifferConfig)
     smoother: SmootherConfig = field(default_factory=SmootherConfig)
     shifter: ShifterConfig = field(default_factory=ShifterConfig)
+    loess: LoessConfig = field(default_factory=LoessConfig)
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
@@ -99,6 +94,8 @@ class StepsConfig(BaseConfig):
     def step_config(self, name: StepName):
         if name == StepName.SMOOTHER:
             return self.smoother
+        if name == StepName.LOESS:
+            return self.loess
         elif name == StepName.DIFFER:
             return self.differ
         elif name == StepName.DROP_INTERVALS:
