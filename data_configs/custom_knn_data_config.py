@@ -12,9 +12,7 @@ EXECUTE_CONFIG = {
             "shifter",
             "drop_intervals",
             "filter",
-            # "interpolation",
             "knn",
-            # "gpr",
             "smoother",
             "scaler",
             "splitter",
@@ -25,51 +23,12 @@ EXECUTE_CONFIG = {
                 "enabled": True,
                 "intervals": [["2021", "2022-10-16"], ["2023-09-20", "2024"]],
             },
-            "differ": {"enabled": False, "params": {"how": "add"}},
             "filter": {
                 "enabled": True,
                 "X": {"enabled": False},
                 "y": {
                     "enabled": True,
                     "params": {"freq": "1h", "filter_freq": "1W", "max_diff": 30},
-                },
-            },
-            "outliers": {
-                "enabled": False,
-                "X": {
-                    "enabled": False,
-                    "scope": "local",
-                    "params": {"dtype": "drop", "window": 24, "k": 1.5},
-                },
-                "y": {
-                    "enabled": False,
-                    "scope": "local",
-                    "params": {"dtype": "clip", "window": 128, "k": 1.5},
-                },
-            },
-            "interpolation": {
-                "enabled": True,
-                "X": {
-                    "enabled": False,
-                    "freq": "1h",
-                    "params": {
-                        "method": "spline",
-                        "order": 3,
-                        "limit": 24,
-                        "limit_area": "inside",
-                        "limit_direction": "both",
-                    },
-                },
-                "y": {
-                    "enabled": True,
-                    "freq": "1h",
-                    "params": {
-                        "method": "time",
-                        "order": 3,
-                        "limit": 24,
-                        "limit_area": "inside",
-                        "limit_direction": "both",
-                    },
                 },
             },
             "knn": {
@@ -81,18 +40,6 @@ EXECUTE_CONFIG = {
                     "index_as_feature": True,
                     "drop_big_gap": True,
                     "max_gap": 14 * 24,
-                },
-            },
-            "gpr": {
-                "enabled": True,
-                "params": {
-                    "freq": "1h",
-                    "index_as_feature": False,
-                    "kernel": "matern",
-                    "length_scale": 1.0,
-                    "nu": 1.5,
-                    "noise_level": 1e-2,
-                    "alpha": 1e-10,
                 },
             },
             "smoother": {

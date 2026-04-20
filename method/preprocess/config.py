@@ -16,9 +16,13 @@ from .differ.differ import DifferConfig, Differ
 from .smoother.smoother import SmootherConfig, Smoother
 from .shifter.shifter import ShifterConfig, Shifter
 from .loess.loess import LoessConfig, Loess
+from .knn.knn import KNNConfig, KNN
+from .gauss.gauss import GPRConfig, GPR
 
 
 class StepName(StrEnum):
+    GPR = "gpr"
+    KNN = "knn"
     LOESS = "loess"
     DIFFER = "differ"
     SMOOTHER = "smoother"
@@ -36,6 +40,8 @@ STEP_NAMES = [s.value for s in StepName]
 
 
 STEPS_CLASS: dict[StepName, Any] = {
+    StepName.GPR: GPR,
+    StepName.KNN: KNN,
     StepName.SMOOTHER: Smoother,
     StepName.DIFFER: Differ,
     StepName.DROP_INTERVALS: IntervalDropper,
@@ -57,6 +63,8 @@ DEFAULT_STEPS_ORDER: list[StepName] = [
     StepName.OUTLIERS,
     StepName.FILTER,
     StepName.INTERPOLATION,
+    StepName.KNN,
+    StepName.GPR,
     StepName.LOESS,
     StepName.SMOOTHER,
     StepName.SPLITTER,
@@ -78,6 +86,8 @@ class StepsConfig(BaseConfig):
     smoother: SmootherConfig = field(default_factory=SmootherConfig)
     shifter: ShifterConfig = field(default_factory=ShifterConfig)
     loess: LoessConfig = field(default_factory=LoessConfig)
+    knn: KNNConfig = field(default_factory=KNNConfig)
+    gpr: GPRConfig = field(default_factory=GPRConfig)
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
@@ -94,8 +104,12 @@ class StepsConfig(BaseConfig):
     def step_config(self, name: StepName):
         if name == StepName.SMOOTHER:
             return self.smoother
-        if name == StepName.LOESS:
+        elif name == StepName.GPR:
+            return self.gpr
+        elif name == StepName.LOESS:
             return self.loess
+        elif name == StepName.KNN:
+            return self.knn
         elif name == StepName.DIFFER:
             return self.differ
         elif name == StepName.DROP_INTERVALS:

@@ -1,0 +1,11 @@
+numpy 
+pandas
+matplotlib
+torch
+scikit-learn
+statsmodels
+
+rich
+openpyxl
+ipympl 
+ipykernel
