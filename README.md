@@ -101,7 +101,7 @@
 | Hinge             | 0.087433  |
 
 
-## Custom-loess-interpolation  
+## Custom-knn-interpolation  
 Ноутбук: [custom_knn_data.ipynb](custom_knn_data.ipynb)   
 Конфиг: [data_configs/custom_knn_data_config.py](data_configs/custom_knn_data_config.py)  
 Описание: данные с knn-интрерполяцией, сглаживанием и отбором признаков при помощи pls регрессии с pls_depth=3  
