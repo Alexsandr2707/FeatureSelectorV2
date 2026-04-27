@@ -13,13 +13,6 @@ FUNC_FORMAT = "%s"
 METHOD_FORMAT = CLASS_FORMAT + "." + FUNC_FORMAT
 
 
-@dataclass
-class ExecContext:
-    run_id: str
-    path: str
-    depth: str
-
-
 def log_method(level=logging.DEBUG):
     def decorator(func):
         @wraps(func)
@@ -50,7 +43,7 @@ def log_method(level=logging.DEBUG):
     return decorator
 
 
-def make_obj_logger(self):
+def make_obj_logger(self, logger=logger):
     def log(msg: str, *args, level: int = logging.DEBUG, **kwargs):
         msg = CLASS_FORMAT + " " + msg
         logger.log(level, msg, self.__class__.__name__, *args, **kwargs)
@@ -58,8 +51,8 @@ def make_obj_logger(self):
     return log
 
 
-def make_obj_params_logger(self):
-    log = make_obj_logger(self)
+def make_obj_params_logger(self, logger=logger):
+    log = make_obj_logger(self, logger=logger)
 
     def log_params(msg: str, *params: Any, one_line=True, level=logging.DEBUG):
         if one_line:
@@ -76,5 +69,6 @@ def make_obj_params_logger(self):
 
 class ClassLogger:
     def __init__(self):
-        self.log = make_obj_logger(self)
-        self.log_params = make_obj_params_logger(self)
+        self.logger = logging.getLogger(self.__class__.__module__)
+        self.log = make_obj_logger(self, logger=self.logger)
+        self.log_params = make_obj_params_logger(self, logger=self.logger)

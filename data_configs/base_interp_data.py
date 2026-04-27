@@ -6,15 +6,16 @@ EXECUTE_CONFIG = {
         "target_column": "UZK.Q.81AY00108.FINALPOINT",
         "freq": "1h",
     },
+    "random_seed": 0,
     "preprocess": {
         "steps_order": [
+            "feature_selector",  # static selector
             "shifter",
             "drop_intervals",
             "filter",
             "interpolation",
-            "scaler",
-            "feature_selector",
             "splitter",
+            "scaler",
         ],
         "steps_configs": {
             "shifter": {"enabled": True, "horizon": 1, "freq": "1h"},
@@ -39,7 +40,7 @@ EXECUTE_CONFIG = {
                     "params": {
                         "method": "spline",
                         "order": 3,
-                        "limit": 3,
+                        "limit": 24,
                         "limit_area": "inside",
                         "limit_direction": "both",
                     },
@@ -47,8 +48,8 @@ EXECUTE_CONFIG = {
             },
             "scaler": {
                 "enabled": True,
-                "X": {"enabled": True, "dtype": "robust"},
-                "y": {"enabled": True, "dtype": "robust"},
+                "X": {"enabled": True, "dtype": "standard"},
+                "y": {"enabled": True, "dtype": "standard"},
             },
             "feature_selector": {
                 "enabled": True,
@@ -74,18 +75,21 @@ EXECUTE_CONFIG = {
         },
     },
     "model": {
-        "trainer": {
-            "epochs": 200,
-            "batch": 128,
-            "early_stoping": 50,
-        },
-        "model": {
-            "lag": 48,
-            "gru": [16, 1],
-            "l2": 0.00,
-            "decay": 0.5,
-            "lr": 1e-2,
-            "min_lr": 1e-2,
+        "model_type": "rnn",
+        "params": {
+            "trainer": {
+                "epochs": 200,
+                "batch": 128,
+                "early_stoping": 50,
+            },
+            "model": {
+                "lag": 48,
+                "gru": [16, 1],
+                "l2": 0.00,
+                "decay": 0.5,
+                "lr": 1e-2,
+                "min_lr": 1e-2,
+            },
         },
     },
 }

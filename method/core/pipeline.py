@@ -50,3 +50,7 @@ class Pipeline(BasePipelineStep[Any, Any], ClassLogger):
     def predict(self, data: Any) -> Any:
         result = self.transform(data)
         return result
+
+    def get_step(self, name: str) -> PipelineStepProtocol[Any, Any]:
+        fined_steps = [x for x in self.steps if x[0] == name]
+        return fined_steps[0][1]

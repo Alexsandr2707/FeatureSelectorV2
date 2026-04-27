@@ -6,6 +6,7 @@ EXECUTE_CONFIG = {
         "target_column": "UZK.Q.81AY00108.FINALPOINT",
         "freq": "1h",
     },
+    "random_seed": 0,
     "preprocess": {
         "steps_order": [
             "feature_selector",
@@ -14,8 +15,8 @@ EXECUTE_CONFIG = {
             "filter",
             "knn",
             "smoother",
-            "scaler",
             "splitter",
+            "scaler",
         ],
         "steps_configs": {
             "shifter": {"enabled": True, "horizon": 1, "freq": "1h"},
@@ -44,8 +45,8 @@ EXECUTE_CONFIG = {
             },
             "smoother": {
                 "enabled": True,
-                "X": {"enabled": False, "params": {"limit": 6}},
-                "y": {"enabled": True, "method": "loess", "params": {"frac": 0.005}},
+                "X": {"enabled": True, "method": "mean", "params": {"limit": 6}},
+                "y": {"enabled": True, "method": "mean", "params": {"limit": 6}},
             },
             "scaler": {
                 "enabled": True,
@@ -57,22 +58,22 @@ EXECUTE_CONFIG = {
                 "dtype": "static",
                 "params": {
                     # "pls_depth": 3,
-                    # "select_features": [
-                    #     "81TI10143",
-                    #     "81TI10126",
-                    #     "81FIL30066",
-                    #     "81LILH40012",
-                    #     "81TIH11209",
-                    #     "81FCL30063",
-                    #     "81FI30052",
-                    #     "81TI10123",
-                    # ],
                     "select_features": [
+                        "81TI10143",
                         "81TI10126",
+                        "81FIL30066",
                         "81LILH40012",
+                        "81TIH11209",
                         "81FCL30063",
                         "81FI30052",
+                        "81TI10123",
                     ],
+                    # "select_features": [
+                    #     "81TI10126",
+                    #     "81LILH40012",
+                    #     "81FCL30063",
+                    #     "81FI30052",
+                    # ],
                 },
             },
             "splitter": {
@@ -82,19 +83,21 @@ EXECUTE_CONFIG = {
         },
     },
     "model": {
-        # "model_type": "RNN",
-        "trainer": {
-            "epochs": 200,
-            "batch": 128,
-            "early_stoping": 50,
-        },
-        "model": {
-            "lag": 48,
-            "gru": [16, 1],
-            "l2": 0.00,
-            "decay": 0.5,
-            "lr": 1e-2,
-            "min_lr": 1e-2,
+        "model_type": "rnn",
+        "params": {
+            "trainer": {
+                "epochs": 200,
+                "batch": 128,
+                "early_stoping": 200,
+            },
+            "model": {
+                "lag": 48,
+                "gru": [16, 1],
+                "l2": 0.00,
+                "decay": 0.5,
+                "lr": 1e-2,
+                "min_lr": 1e-2,
+            },
         },
     },
 }

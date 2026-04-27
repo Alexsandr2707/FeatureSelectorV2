@@ -1,0 +1,5 @@
+{
+    "todo-tree.tree.scanMode": "workspace only",
+    "dataWrangler.outputRenderer.enabled": true,
+    "dataWrangler.outputRenderer.columnInsights.displayByDefault": true
+}

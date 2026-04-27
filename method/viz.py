@@ -2,11 +2,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import math
 import numpy as np
-from typing import Literal
+from typing import Literal, Any
 import scipy.stats as stats
 
+from method.datasets import DatasetBundle
+from method.models.model import ModelResults
+
 PlotType = Literal["plot", "scatter", "hist", "plot_scatter"]
-DEFAULT_FIG_SIZE = (12, 10)
+DEFAULT_FIG_SIZE = (12, 8)
 
 
 def _plot(
@@ -52,7 +55,6 @@ def plot_data(
 
     # Plot all features
     fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=DEFAULT_FIG_SIZE)
-    fig.subplots_adjust(hspace=0.5)
     if title is not None:
         fig.suptitle(title, fontsize=16)
 
@@ -78,7 +80,9 @@ def plot_data(
         i, j = divmod(num, ncols)
         axs[i, j].set_visible(False)
 
+    plt.tight_layout()
     plt.show()
+    plt.close()
 
 
 def plot_data_compare(
@@ -94,28 +98,73 @@ def plot_data_compare(
     _plot(ax, data_prep.index, data_prep, plot_type="plot", color="blue")
     _plot(ax, data_raw.index, data_raw, plot_type="scatter", color="red", s=5)
     ax.grid(which="major")
+
+    plt.tight_layout()
     plt.show()
+    plt.close()
 
 
-def plot_results(result: dict[str, pd.DataFrame]):
+def plot_prep_data(
+    data_raw: DatasetBundle,
+    data_prep: DatasetBundle,
+    features_title: str | None = None,
+    target_title: str | None = None,
+):
+    features_title = features_title if features_title is not None else "Features"
+    target_title = target_title if target_title is not None else "Target"
+
+    ds_prep = data_prep.merge_data().train
+    ds_raw = data_raw.train.replace(new_y_scaler=ds_prep.y_scaler)
+    y_raw_scaled = ds_raw.scale(scale_y=True).y
+    y_prep_scaled = ds_prep.y
+
+    plot_data(ds_prep.X.dropna(), plot_type="plot", title=features_title)
+    plot_data_compare(y_raw_scaled.dropna(), y_prep_scaled.dropna(), title=target_title)
+
+
+def plot_results(
+    result: ModelResults | dict[str, dict[str, pd.Series]],
+    cone: float = 3.5,
+):
+    if isinstance(result, ModelResults):
+        result = result.asdict_of_series()
+
     fig = plt.figure(figsize=DEFAULT_FIG_SIZE)
     ax1 = plt.subplot2grid((2, 2), (0, 0), colspan=2, fig=fig)
     ax2 = plt.subplot2grid((2, 2), (1, 0), fig=fig)
     ax3 = plt.subplot2grid((2, 2), (1, 1), fig=fig)
 
-    result["train"]["true"] = result["train"]["true"].dropna()
-    result["train"]["pred"] = result["train"]["pred"].dropna()
-    result["valid"]["true"] = result["valid"]["true"].dropna()
-    result["valid"]["pred"] = result["valid"]["pred"].dropna()
-
     labels = ["Train True", "Train Pred", "Valid True", "Valid Pred"]
     colors = ["blue", "orange", "green", "red"]
 
+    # Dropping NaN
+    for label in labels:
+        l1 = label.split()[0].lower()
+        l2 = label.split()[1].lower()
+        result[l1][l2] = result[l1][l2].dropna()
+
+    # Plot true and pred values
     for label, color in zip(labels, colors):
         l1 = label.split()[0].lower()
         l2 = label.split()[1].lower()
-
         ax1.plot(result[l1][l2], label=label, color=color, lw=0.7)
+
+    # Plot hinge band
+    for i, split in enumerate(("train", "valid")):
+        true_values = result[split]["true"]
+        x = true_values.index
+
+        upper = true_values + cone
+        lower = true_values - cone
+
+        ax1.fill_between(
+            x,
+            lower,
+            upper,
+            color="grey",
+            alpha=0.2,
+            label=f"hinge band" if i == 0 else None,
+        )
 
     ax1.legend()
     ax1.grid(True)
@@ -137,3 +186,4 @@ def plot_results(result: dict[str, pd.DataFrame]):
 
     plt.tight_layout()
     plt.show()
+    plt.close()

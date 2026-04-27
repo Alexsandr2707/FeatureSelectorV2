@@ -35,7 +35,7 @@ class CorrelationLag(TransformerMixin):
 
     def fit(self, X, y):
         bonus = "'s p-value" if self.pvalue_output else ""
-        logger.info(f"Computing best lag using {self.corr} correlation{bonus}...")
+        logger.debug(f"Computing best lag using {self.corr} correlation{bonus}...")
         method = self.corr
         if self.pvalue_output:
             methodr = eval(method + "r")

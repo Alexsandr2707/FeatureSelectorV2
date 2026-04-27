@@ -1,4 +1,4 @@
-from dataclasses import fields, MISSING, dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import Self, Literal, get_type_hints
 
 
@@ -7,6 +7,9 @@ class BaseConfig:
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         return cls(**d)
+
+    def asdict(self):
+        return asdict(self)
 
 
 @dataclass(frozen=True)

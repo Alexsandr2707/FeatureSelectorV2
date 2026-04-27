@@ -1,8 +1,9 @@
 import pandas as pd
 import logging
 import torch
-from typing import Any
+from typing import Any, cast
 
+from ..base import ModelResults, SplitResults
 from .config import RNNConfig
 from .rnn_model import RNNModel
 from .vector import sliding_window
@@ -14,15 +15,13 @@ from logging_tools.logging_tools import ClassLogger, log_method
 logger = logging.getLogger(__name__)
 
 
-class RNN(BasePipelineStep[DatasetBundle, Any], ClassLogger):
+class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
     def __init__(self, config: RNNConfig | None = None):
         super().__init__()
         self.config = config or RNNConfig()
 
     @log_method()
-    def transform(self, data: DatasetBundle) -> Any:
-        self.log("training model", level=logging.INFO)
-
+    def transform(self, data: DatasetBundle) -> ModelResults:
         if data.has_valid is None:
             raise ValueError("Model haven't got valid data")
 
@@ -72,5 +71,7 @@ class RNN(BasePipelineStep[DatasetBundle, Any], ClassLogger):
             early_stopping_rounds=self.config.trainer.early_stoping,
         )
 
-        self.log("Model trained", level=logging.INFO)
+        train_res = SplitResults(result["train"]["true"], result["train"]["pred"])
+        valid_res = SplitResults(result["valid"]["true"], result["valid"]["pred"])
+        result = ModelResults(train=train_res, valid=valid_res)
         return result

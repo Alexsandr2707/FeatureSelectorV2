@@ -3,6 +3,9 @@ import copy
 from pathlib import Path
 from dataclasses import dataclass, InitVar
 from typing import Literal, Self, Any, Callable
+import logging
+
+logger = logging.getLogger(__name__)
 
 from .core.config_base import BaseConfig
 from .core.pipeline import BasePipelineStep
@@ -85,6 +88,7 @@ class Dataset:
         new_y_scaler: Any = UNSET,
         make_copy: bool = True,
     ) -> Self:
+
         new_X = self.X if isinstance(new_X, UnsetType) else new_X
         new_y = self.y if isinstance(new_y, UnsetType) else new_y
         new_X_scaler = (
@@ -165,11 +169,14 @@ class Dataset:
             if scaler is None or not use_scaler:
                 return lambda x: x
             if how == "straight":
-                return scaler.transform
+                func = scaler.transform
             elif how == "inverse":
-                return scaler.inverse_transform
+                func = scaler.inverse_transform
             else:
                 raise ValueError("Undefined 'how' type", how)
+
+            pd_func = lambda x: pd.DataFrame(func(x), index=x.index, columns=x.columns)
+            return pd_func
 
         X_fn = get_scale_func(self.X_scaler, scale_X, how)
         y_fn = get_scale_func(self.y_scaler, scale_y, how)

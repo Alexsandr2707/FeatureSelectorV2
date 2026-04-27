@@ -1,4 +1,5 @@
 .direnv
+test_data.ipynb
 tmp
 logs
 data

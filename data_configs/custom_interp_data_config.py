@@ -6,15 +6,16 @@ EXECUTE_CONFIG = {
         "target_column": "UZK.Q.81AY00108.FINALPOINT",
         "freq": "1h",
     },
+    "random_seed": 0,
     "preprocess": {
         "steps_order": [
+            "feature_selector",  # static selector
             "shifter",
             "drop_intervals",
             "filter",
             "interpolation",
             "smoother",
             "scaler",
-            "feature_selector",
             "splitter",
         ],
         "steps_configs": {
@@ -87,19 +88,21 @@ EXECUTE_CONFIG = {
         },
     },
     "model": {
-        # "model_type": "RNN",
-        "trainer": {
-            "epochs": 200,
-            "batch": 128,
-            "early_stoping": 50,
-        },
-        "model": {
-            "lag": 48,
-            "gru": [16, 1],
-            "l2": 0.00,
-            "decay": 0.5,
-            "lr": 1e-2,
-            "min_lr": 1e-2,
+        "model_type": "rnn",
+        "params": {
+            "trainer": {
+                "epochs": 200,
+                "batch": 128,
+                "early_stoping": 50,
+            },
+            "model": {
+                "lag": 48,
+                "gru": [16, 1],
+                "l2": 0.00,
+                "decay": 0.5,
+                "lr": 1e-2,
+                "min_lr": 1e-2,
+            },
         },
     },
 }

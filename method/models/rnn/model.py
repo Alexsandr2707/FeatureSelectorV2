@@ -149,7 +149,7 @@ class BaseModel(nn.Module):
                 self.scheduler.step()
 
             if verbose:
-                level = logging.INFO if epoch % 10 == 0 else logging.DEBUG
+                level = logging.DEBUG
                 logger.log(
                     level,
                     f"epoch {epoch}: train: {train_:1.4f}, lr: {self.optimizer.param_groups[0]['lr']:.3e}, valid: {valid_:1.4f}, best_valid: {best_valid:1.4f}",
