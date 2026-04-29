@@ -38,6 +38,7 @@ class Evaluate:
         batch=8,
         epochs=1000,
         device="cpu",
+        fit_model=True,
         **kwargs,
     ):
         if lag is not None:
@@ -55,7 +56,10 @@ class Evaluate:
             valid = data_loader(
                 X_valid, y_valid, shuffle=False, batch_size=self.EVAL_BATCH_SIZE
             )
-        self.fit(train, valid, epochs=epochs, **kwargs)
+
+        if fit_model:
+            self.fit(train, valid, epochs=epochs, **kwargs)
+
         train = data_loader(
             X_train, y_train, shuffle=False, batch_size=self.EVAL_BATCH_SIZE
         )

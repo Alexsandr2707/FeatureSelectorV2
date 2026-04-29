@@ -7,7 +7,7 @@ EXECUTE_CONFIG = {
         "target_column": "UZK.Q.81AY00108.FINALPOINT",
         "freq": "1h",
     },
-    "random_seed": 0,
+    "random_seed": 0,  # 793
     "preprocess": {
         "steps_order": [
             "feature_selector",
@@ -64,6 +64,7 @@ EXECUTE_CONFIG = {
                 },
                 "y": {
                     "enabled": True,
+                    "sparsify_step": 3,
                     "freq": "1h",
                     "params": {
                         "method": "time",
@@ -99,7 +100,7 @@ EXECUTE_CONFIG = {
             },
             "smoother": {
                 "enabled": True,
-                "X": {"enabled": False, "params": {"limit": 6}},
+                "X": {"enabled": False, "method": "mean", "params": {"limit": 12}},
                 "y": {"enabled": True, "method": "loess", "params": {"frac": 0.005}},
             },
             "scaler": {
@@ -137,20 +138,28 @@ EXECUTE_CONFIG = {
         },
     },
     "model": {
-        "model_type": "rnn",
+        "model_type": "ensemble",
         "params": {
-            "trainer": {
-                "epochs": 200,
-                "batch": 128,
-                "early_stoping": 200,
-            },
-            "model": {
-                "lag": 48,
-                "gru": [16, 1],
-                "l2": 0.00,
-                "decay": 0.01,
-                "lr": 1e-2,
-                "min_lr": 1e-2,
+            "est_type": "rnn",
+            "n_est": 10,
+            "meta_model": "ridge",
+            "meta_model_params": {"alpha": 0.1, "weights_type": "linear"},
+            "split_method": "basic",  # expanded_window
+            "split_method_params": {"init_frac": 0.8, "end_frac": 0.2},
+            "est_params": {
+                "trainer": {
+                    "epochs": 200,
+                    "batch": 128,
+                    "early_stoping": 200,
+                },
+                "model": {
+                    "lag": 48,
+                    "gru": [16, 1],
+                    "l2": 0.00,
+                    "decay": 0.01,
+                    "lr": 1e-2,
+                    "min_lr": 1e-2,
+                },
             },
         },
     },

@@ -1,16 +1,21 @@
+import pandas as pd
 from dataclasses import dataclass, field
 from enum import StrEnum, Enum
-from typing import Self, get_type_hints
+from typing import Self, get_type_hints, Protocol, Self, Any
 
+from method.datasets import DatasetBundle
 from method.core.config_base import BaseConfig
+from .base import ModelResults, SplitResults
 from .rnn.rnn import RNN, RNNConfig
+from .ensemble.ensemble import Ensemble, EnsembleConfig
 
 
 class ModelType(StrEnum):
     RNN = "rnn"
+    ENSEMBLE = "ensemble"
 
 
-ModelParams = RNNConfig
+ModelParams = RNNConfig | EnsembleConfig
 
 
 @dataclass(frozen=True)
@@ -29,21 +34,26 @@ class ModelConfig(BaseConfig):
         else:
             model_type = cls.model_type
 
-        if "params" in d:
-            params_type = hints["params"]
-
-            if model_type == ModelType.RNN:
-                params = params_type.from_dict(d["params"])
-            else:
-                raise ValueError("Undefined model type")
-
-            build_dict["params"] = params
+        params_type = get_model_type(model_type)
+        params = params_type.from_dict(d.get("params", {}))
+        build_dict["params"] = params
 
         return cls(**build_dict)
 
 
-def get_model(model_type: ModelType, params: ModelParams):
+def get_model_type(model_type: ModelType):
     if model_type == ModelType.RNN:
-        return RNN(params)
+        return RNNConfig
+    elif model_type == ModelType.ENSEMBLE:
+        return EnsembleConfig
     else:
-        raise ValueError("Undefined model type")
+        raise ValueError("Undefined model type", model_type)
+
+
+def get_model(model_type: ModelType, params: ModelParams):
+    if model_type == ModelType.RNN and isinstance(params, RNNConfig):
+        return RNN(params)
+    elif model_type == ModelType.ENSEMBLE and isinstance(params, EnsembleConfig):
+        return Ensemble(params)
+    else:
+        raise ValueError("Undefined model type or config")

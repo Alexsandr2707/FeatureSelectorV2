@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 from .core.config_base import BaseConfig
 from .core.pipeline import BasePipelineStep
+from logging_tools.logging_tools import ClassLogger, log_method
 
 
 # use it make explisit behavior
@@ -367,3 +368,81 @@ class LoadDatasetStep(BasePipelineStep[DatasetConfig, DatasetBundle]):
 
     def fit_transform(self, data: Any = None) -> DatasetBundle:
         return self.fit().transform()
+
+
+def _get_init_size(indeces_len: int, init_frac: float):
+    return int(indeces_len * init_frac)
+
+
+def _get_end_size(indeces_len: int, end_frac: float):
+    return int(indeces_len * end_frac)
+
+
+def _get_window_size(
+    indeces_len: int, nwin: int, init_frac: float, end_frac: float
+) -> int:
+    assert init_frac + end_frac <= 1
+    if nwin == 1:
+        return 0
+    return int(indeces_len * (1 - init_frac - end_frac) / (nwin - 1))
+
+
+def _get_train_stop(
+    indeces_len: int, win_num: int, nwin: int, init_frac: float, end_frac: float
+) -> int:
+    assert 0 <= win_num < nwin, "Window number must be in [0, nwin)"
+    assert init_frac + end_frac <= 1
+
+    init_size = _get_init_size(indeces_len, init_frac)
+    end_size = _get_end_size(indeces_len, end_frac)
+    win_size = _get_window_size(indeces_len, nwin, init_frac, end_frac)
+
+    if win_num == nwin - 1:
+        return indeces_len - end_size
+
+    return init_size + win_num * win_size
+
+
+@dataclass(slots=True, frozen=True)
+class ExpandedWindowDB(DatasetBundle):
+    nwin: int = 3
+    init_frac: float = 0.2
+    end_frac: float = 0.3
+
+    @classmethod
+    def from_db(
+        cls,
+        data: DatasetBundle,
+        nwin: int = 3,
+        init_frac: float = 0.2,
+        end_frac: float = 0.3,
+    ) -> Self:
+        return cls(
+            train=data.train,
+            valid=data.valid,
+            nwin=nwin,
+            init_frac=init_frac,
+            end_frac=end_frac,
+        )
+
+    def repartition(self, nwin: int = 3, init_frac: float = 0.2):
+        object.__setattr__(self, "nwin", nwin)
+        object.__setattr__(self, "init_frac", init_frac)
+
+    def get_train_stop(self, win_num: int):
+        indeces_len = len(self.train.index)
+        stop = _get_train_stop(
+            indeces_len, win_num, self.nwin, self.init_frac, self.end_frac
+        )
+        return stop
+
+    def get_window(self, win_num: int) -> DatasetBundle:
+        train_end = self.get_train_stop(win_num)
+        train = self.train[:train_end]
+        valid = self.train[train_end:]
+        win = DatasetBundle(train, valid=valid)
+        return win
+
+    def get_windows(self) -> list[DatasetBundle]:
+        windows = [self.get_window(i) for i in range(self.nwin)]
+        return windows

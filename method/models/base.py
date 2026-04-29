@@ -1,10 +1,11 @@
 import pandas as pd
+import operator
 from dataclasses import dataclass, field, asdict
-from typing import Self, get_type_hints, Literal, Callable, cast
+from typing import Self, get_type_hints, Callable, cast, Protocol, Any
 
 from method.core.config_base import BaseConfig
 from method.core.pipeline import BasePipelineStep
-from method.datasets import Dataset
+from method.datasets import DatasetBundle, Dataset
 from method.metrics import metrics
 
 
@@ -100,6 +101,24 @@ class SplitResults(BaseConfig):
     def index(self):
         return self.true.index
 
+    def _apply(self, other, op):
+        if isinstance(other, SplitResults):
+            return SplitResults(op(self.true, other.true), op(self.pred, other.pred))
+        else:
+            return SplitResults(op(self.true, other), op(self.pred, other))
+
+    def __add__(self, other):
+        return self._apply(other, operator.add)
+
+    def __sub__(self, other):
+        return self._apply(other, operator.sub)
+
+    def __mul__(self, other):
+        return self._apply(other, operator.mul)
+
+    def __truediv__(self, other):
+        return self._apply(other, operator.truediv)
+
 
 @dataclass(frozen=True)
 class ModelResults(BaseConfig):
@@ -147,3 +166,57 @@ class ModelResults(BaseConfig):
         series_dict["train"] = self.train.asdict_of_series()
         series_dict["valid"] = self.valid.asdict_of_series()
         return series_dict
+
+    @classmethod
+    def from_df(
+        cls,
+        train_pred: pd.DataFrame,
+        train_true: pd.DataFrame,
+        valid_pred: pd.DataFrame,
+        valid_true: pd.DataFrame,
+    ):
+        train = SplitResults(train_true, train_pred)
+        valid = SplitResults(valid_true, valid_pred)
+        res = cls(train, valid)
+        return res
+
+    def join_split(self) -> SplitResults:
+        true = pd.concat([self.train.true, self.valid.true])
+        pred = pd.concat([self.train.pred, self.valid.pred])
+        return SplitResults(true, pred)
+
+    def _apply(self, other, op):
+        if isinstance(other, ModelResults):
+            return ModelResults(
+                op(self.train, other.train), op(self.valid, other.valid)
+            )
+        else:
+            return ModelResults(op(self.train, other), op(self.valid, other))
+
+    def __add__(self, other):
+        return self._apply(other, operator.add)
+
+    def __sub__(self, other):
+        return self._apply(other, operator.sub)
+
+    def __mul__(self, other):
+        return self._apply(other, operator.mul)
+
+    def __truediv__(self, other):
+        return self._apply(other, operator.truediv)
+
+
+class ModelProtocol(Protocol):
+    def __init__(self, config: Any = None):
+        pass
+
+    def fit(self, data: Any) -> Self:
+        return self
+
+    def transform(self, data: DatasetBundle) -> ModelResults:
+        dumb = SplitResults(pd.DataFrame(), pd.DataFrame())
+        return ModelResults(dumb, dumb)
+
+    def fit_transform(self, data: DatasetBundle) -> ModelResults:
+        dumb = SplitResults(pd.DataFrame(), pd.DataFrame())
+        return ModelResults(dumb, dumb)

@@ -20,6 +20,7 @@ class InterpParams(BaseConfig):
 @dataclass(frozen=True)
 class InterpGroupConfig(GroupConfig, SwitchConfig):
     freq: str = "1h"
+    sparsify_step: int = 0
     params: InterpParams = field(default_factory=InterpParams)
 
 

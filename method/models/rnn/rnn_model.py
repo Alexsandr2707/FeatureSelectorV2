@@ -51,6 +51,19 @@ class RNNModel(BaseModel, Evaluate):
         self.loss = nn.MSELoss()
         self.optimizer = optim.AdamW(self.parameters(), lr=lr, weight_decay=decay)
 
+        self._init_weights()
+
+    def _init_weights(self):
+        for m in self.modules():
+            if isinstance(m, GRU_state):
+                for name, param in m.named_parameters():
+                    if "weight_hh" in name:
+                        nn.init.orthogonal_(param)
+                    elif "weight_ih" in name:
+                        nn.init.xavier_uniform_(param)
+                    elif "bias" in name:
+                        nn.init.zeros_(param)
+
     def penalty(self):
         for W in self.feed[0].parameters():
             break
@@ -61,13 +74,22 @@ class RNNModel(BaseModel, Evaluate):
     def forward(self, x):
         return self.feed(x)
 
-    def evaluate(self, X_train, y_train, *args, device="cpu", **kwargs):
-        corr = CorrelationLag(maxlag=self.lag, blur=False, dropna=True, corr="spearman")
-        corr.fit(X_train[:, -1], y_train[:, -1])
-        self.spearman = Tensor(corr.lags.abs().max().values).to(device)
-        nn.Module.to(self, device)
+    def evaluate(self, X_train, y_train, *args, fit_model=True, device="cpu", **kwargs):
+        if fit_model:
+            self.corr = CorrelationLag(
+                maxlag=self.lag, blur=False, dropna=True, corr="spearman"
+            )
+            self.corr.fit(X_train[:, -1], y_train[:, -1])
+            self.spearman = Tensor(self.corr.lags.abs().max().values).to(device)
         return Evaluate.evaluate(
-            self, X_train, y_train, *args, lag=self.lag, device=device, **kwargs
+            self,
+            X_train,
+            y_train,
+            *args,
+            lag=self.lag,
+            device=device,
+            fit_model=fit_model,
+            **kwargs
         )
 
     def fit(
