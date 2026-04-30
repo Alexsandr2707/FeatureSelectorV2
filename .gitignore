@@ -5,5 +5,6 @@ tmp
 logs
 data
 RNNModel.tmp
+data_configs/test_data_config.py
 **/__pycache__
 __pycache__
