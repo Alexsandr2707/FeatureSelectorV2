@@ -58,8 +58,8 @@ def plot_data(
     if title is not None:
         fig.suptitle(title, fontsize=16)
 
-    if ax_count == 1:
-        axs = np.array([axs]).reshape((-1, 1))
+    if ax_count == 1 or nrows == 1:
+        axs = np.array([axs]).reshape((1, -1))
 
     for num, name in enumerate(names):
         i, j = divmod(num, ncols)

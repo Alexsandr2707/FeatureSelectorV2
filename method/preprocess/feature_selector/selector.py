@@ -3,18 +3,32 @@ from typing import Self
 
 from .config import SelectorConfig, SelectorType
 from .pls import PLSTransformer
+from .lasso import LassoTransformer
+from .bayes import BayesTransformer
 from .static import StaticSelector
 from method.datasets import Dataset, DatasetBundle
 from method.core.pipeline import BasePipelineStep
 from logging_tools.logging_tools import ClassLogger, log_method
-
 
 logger = logging.getLogger(__name__)
 
 
 def get_selector(config: SelectorConfig):
     if config.dtype == SelectorType.PLS:
-        return PLSTransformer(config.params.pls_depth, dropna=True)
+        return PLSTransformer(config.params.depth, dropna=True)
+    elif config.dtype == SelectorType.BAYES:
+        return BayesTransformer(
+            depth=config.params.depth,
+            q=config.params.q_count,
+            max_iter=config.params.max_iter,
+            scoretype=config.params.scoretype,
+        )
+    elif config.dtype == SelectorType.LASSO:
+        return LassoTransformer(
+            l1_ratio=config.params.l1_ratio,
+            threshold=config.params.threshold,
+            top_k=config.params.top_k,
+        )
     elif config.dtype == SelectorType.STATIC:
         return StaticSelector(config.params)
     else:
@@ -31,8 +45,9 @@ class FeatureSelector(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogge
     def fit(self, data: DatasetBundle) -> Self:
         self.log_params("selector params", self.config)
         self.selector = get_selector(self.config)
-        self.selector.fit(*data.train.data)
-        self.log_params("selected features", self.selector.get_feature_names_out())
+        self.selector.fit(*data.train.dropna(how="any").data)
+        self.log("selected %s features", len(self.selector.get_feature_names_out()))
+        self.log_params("selected features:", self.selector.get_feature_names_out())
         return self
 
     @log_method()

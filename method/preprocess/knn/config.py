@@ -17,4 +17,5 @@ class KNNParams(BaseConfig):
 
 @dataclass(frozen=True)
 class KNNConfig(SwitchConfig, GroupConfig):
+    interp_valid: bool = False
     params: KNNParams = field(default_factory=KNNParams)

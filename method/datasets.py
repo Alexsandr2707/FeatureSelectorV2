@@ -123,8 +123,21 @@ class Dataset:
             raise ValueError(f"Overlapping columns: {overlap}")
         return pd.concat([self.X, self.y], axis=1)
 
-    def dropna(self, how: Literal["all", "any"] = "all") -> Self:
-        return self.frame_reconstruct(self.join_data().dropna(how=how))
+    def dropna(self, how: Literal["all", "any", "X", "y"] = "all") -> Self:
+        if how == "X":
+            X, y = self.data
+            X = X.dropna(how="any")
+            y = y.reindex(X.index)
+            return self.replace(new_X=X, new_y=y)
+        elif how == "y":
+            X, y = self.data
+            y = y.dropna(how="any")
+            X = X.reindex(y.index)
+            return self.replace(new_X=X, new_y=y)
+        elif how == "all" or how == "any":
+            return self.frame_reconstruct(self.join_data().dropna(how=how))
+        else:
+            raise ValueError("Undefined 'how' name", how)
 
     def transform(
         self,
@@ -176,7 +189,11 @@ class Dataset:
             else:
                 raise ValueError("Undefined 'how' type", how)
 
-            pd_func = lambda x: pd.DataFrame(func(x), index=x.index, columns=x.columns)
+            def pd_func(x: pd.DataFrame):
+                index = x.index.copy()
+                new_x = func(x)
+                return pd.DataFrame(new_x, index=index, columns=x.columns)
+
             return pd_func
 
         X_fn = get_scale_func(self.X_scaler, scale_X, how)
@@ -194,6 +211,14 @@ class Dataset:
             (y_name, {"cells": y_cells, "rows": y_rows, "shape": self.y.shape}),
         ]
         return result
+
+    def validate(self) -> None:
+        if not isinstance(self.X, pd.DataFrame):
+            raise ValueError("X is not a DataFrame")
+        if not isinstance(self.y, pd.DataFrame):
+            raise ValueError("y is not a DataFrame")
+        if not self.X.index.equals(self.y.index):
+            raise ValueError("X and y must have the same index")
 
     @property
     def index(self):
@@ -344,7 +369,7 @@ class DatasetLoader:
 
         df = X.join(y, how="outer")
         df = df.resample(self.config.freq).first().dropna(how="all")
-        df = df.sort_index()
+        df = df.sort_index().asfreq(self.config.freq)
 
         X = df.loc[:, X.columns]
         y = df.loc[:, y.columns]

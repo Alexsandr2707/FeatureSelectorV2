@@ -5,6 +5,9 @@ tmp
 logs
 data
 RNNModel.tmp
+MoERNNModel.tmp
+*.tmp
+AGENTS.md
 data_configs/test_data_config.py
 **/__pycache__
 __pycache__

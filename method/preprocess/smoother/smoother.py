@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import logging
 from statsmodels.nonparametric.smoothers_lowess import lowess
+from typing import Literal
 
 from .config import SmootherConfig, SmoothMethod, SmootherParams
 from method.datasets import Dataset, DatasetBundle
@@ -56,6 +57,16 @@ class Smoother(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogger):
         self.config = config or SmootherConfig()
 
     def transform_dataset(self, data: Dataset, name: str = "train") -> Dataset:
+        if name == "train":
+            self.log("transform train dataset")
+        elif name == "valid":
+            if not self.config.smooth_valid:
+                self.log("skip valid dataset")
+                return data
+            self.log("transform valid dataset")
+        else:
+            raise ValueError("Undefined dataset type", name)
+
         X, y = data.copy().data
         if self.config.X.enabled:
             self.log("smoothing X_%s", name)

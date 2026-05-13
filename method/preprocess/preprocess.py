@@ -1,5 +1,5 @@
 import logging
-from typing import cast, Any
+from typing import cast, Any, Self
 
 from method.core.pipeline import Pipeline, BasePipelineStep, PipelineStepProtocol
 from method.datasets import DatasetBundle
@@ -23,11 +23,16 @@ class Preprocessor(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogger):
         self.log("initialized")
 
     @log_method(level=logging.INFO)
-    def transform(self, data: DatasetBundle) -> DatasetBundle:
+    def fit(self, data: DatasetBundle) -> Self:
         self.log_params("preprocessing steps order", self.config.steps_order)
         self.log_params("start data stats", *data.stats())
+        self.pipeline.fit(data)
+        self.log_params("result stats", *data.stats())
+        return self
 
-        results = self.pipeline.predict(data)
+    @log_method(level=logging.INFO)
+    def transform(self, data: DatasetBundle) -> DatasetBundle:
+        results = self.pipeline.transform(data)
 
         self.log_params("result stats", *results.stats())
         return results

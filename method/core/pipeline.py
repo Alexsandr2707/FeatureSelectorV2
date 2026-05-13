@@ -40,11 +40,18 @@ class Pipeline(BasePipelineStep[Any, Any], ClassLogger):
         self.steps = steps
         self.make_logs = make_logs
 
+    def fit(self, data: Any) -> Self:
+        for name, step in self.steps:
+            if self.make_logs:
+                self.log("fitting step '%s'", name, level=logging.INFO)
+            data = step.fit_transform(data)
+        return self
+
     def transform(self, data: Any) -> Any:
         for name, step in self.steps:
             if self.make_logs:
                 self.log("making step '%s'", name, level=logging.INFO)
-            data = step.fit_transform(data)
+            data = step.transform(data)
         return data
 
     def predict(self, data: Any) -> Any:
@@ -52,5 +59,5 @@ class Pipeline(BasePipelineStep[Any, Any], ClassLogger):
         return result
 
     def get_step(self, name: str) -> PipelineStepProtocol[Any, Any]:
-        fined_steps = [x for x in self.steps if x[0] == name]
-        return fined_steps[0][1]
+        found_steps = [x for x in self.steps if x[0] == name]
+        return found_steps[0][1]

@@ -12,6 +12,7 @@ class RNNParams(BaseConfig):
     decay: float = 0.01
     lr: float = 1e-2
     min_lr: float = 1e-4
+    use_best_model: bool = True
 
 
 @dataclass(frozen=True)

@@ -63,7 +63,7 @@ EXECUTE_CONFIG = {
                 "enabled": True,
                 "dtype": "static",
                 "params": {
-                    # "pls_depth": 3,
+                    # "depth": 3,
                     "select_features": [
                         "81TI10143",
                         "81TI10126",

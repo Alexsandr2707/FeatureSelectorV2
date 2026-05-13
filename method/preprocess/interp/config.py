@@ -3,7 +3,7 @@ from typing import Literal
 
 from method.core.config_base import BaseConfig, SwitchConfig, GroupConfig, XyConfig
 
-InterpType = Literal["time", "linear", "nearest"]
+InterpType = Literal["time", "linear", "nearest", "ffill", "bfill"]
 DirectionType = Literal["forward", "backward", "both"]
 AreaType = Literal["inside", "outside"]
 
@@ -26,5 +26,6 @@ class InterpGroupConfig(GroupConfig, SwitchConfig):
 
 @dataclass(frozen=True)
 class InterpConfig(XyConfig, SwitchConfig):
+    interp_valid: bool = False
     X: InterpGroupConfig = field(default_factory=InterpGroupConfig)
     y: InterpGroupConfig = field(default_factory=InterpGroupConfig)

@@ -113,6 +113,10 @@ class KNN(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogger):
             self.log("transform train dataset")
             knn_out = self.knn_train.transform(df)
         elif data_type == "valid":
+            if not self.config.interp_valid:
+                self.log("skip valid dataset")
+                return data
+
             self.log("transform valid dataset")
             knn_out = self.knn_valid.transform(df)
         else:

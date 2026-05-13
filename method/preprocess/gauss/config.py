@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
-
+from typing import Literal
 from method.core.config_base import BaseConfig, SwitchConfig, GroupConfig
 
 
@@ -15,15 +15,19 @@ class GPRParams(BaseConfig):
     index_as_feature: bool = False
 
     kernel: KernelType = KernelType.MATERN
-    length_scale: float = 1.0
-    nu: float = 1.5
+    # for matern kernel
+    nu: float = 1.5  # [0.5, 1.5, 2.5, float("inf")] - recomended values
 
-    noise_level: float = 1e-2
-    alpha: float = 1e-10
+    # for gpr
+    n_restarts_optimizer: int = 5
 
-    n_restarts_optimizer: int = 2
+    k_confidence: float = 2  # higher value - more interpvalues, can be inf
+
+    drop_big_gap: bool = False
+    max_gap: int = 14 * 24  # 2 weeks
 
 
 @dataclass(frozen=True)
 class GPRConfig(SwitchConfig, GroupConfig):
+    interp_valid: bool = False
     params: GPRParams = field(default_factory=GPRParams)

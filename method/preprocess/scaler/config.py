@@ -9,11 +9,14 @@ class ScalerType(StrEnum):
     STANDARD = "standard"
     MINMAX = "minmax"
     ROBUST = "robust"
+    STANDARD_ROLLING = "standard_rolling"
+    ROBUST_ROLLING = "robust_rolling"
 
 
 @dataclass(frozen=True)
 class ScalerParams(SwitchConfig):
     dtype: ScalerType = ScalerType.STANDARD
+    window: int = 48  # for ScalerType.WINDOW
 
 
 @dataclass(frozen=True)

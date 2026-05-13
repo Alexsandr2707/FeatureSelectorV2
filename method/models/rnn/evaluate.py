@@ -10,7 +10,7 @@ class Evaluate:
     def __init__(self):
         self.EVAL_BATCH_SIZE = 1024
 
-    def fit(self, train, valid, lr, batch_size=8, epochs=1000):
+    def fit(self, *args, **kwargs):
         raise NotImplementedError()
 
     def data_loader(

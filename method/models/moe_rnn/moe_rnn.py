@@ -1,59 +1,48 @@
 import pandas as pd
 import logging
-import torch
-from typing import Any, cast, Self
+from typing import Self
 
-from ..base import ModelResults, SplitResults
-from .config import RNNConfig
-from .rnn_model import RNNModel
-from .vector import sliding_window
-from method.datasets import Dataset, DatasetBundle
+from ..base import ModelResults
+from ..rnn.rnn import _prepare_data
+from .config import MoERNNConfig
+from .moe_rnn_model import MoERNNModel
+from method.datasets import Dataset, DatasetBundle, ExpandedWindowDB
 from method.core.pipeline import BasePipelineStep
 from logging_tools.logging_tools import ClassLogger, log_method
 
 logger = logging.getLogger(__name__)
 
 
-def _prepare_data(data: DatasetBundle, lag: int):
-    X_train, y_train = data.train.dropna(how="X").data
-    X_valid, y_valid = data.valid.dropna(how="X").data if data.valid else (None, None)
-
-    X_train, y_train, train_index = sliding_window(X_train, y_train, lag=lag, dropna=1)  # type: ignore
-    if X_valid is not None and y_valid is not None:
-        X_valid, y_valid, valid_index = sliding_window(
-            X_valid, y_valid, lag=lag, dropna=1
-        )  # type: ignore
-    else:
-        X_valid, y_valid, valid_index = None, None, None
-
-    X_train_tensor = torch.tensor(X_train).float()
-    y_train_tensor = torch.tensor(y_train).float()
-    X_valid_tensor = torch.tensor(X_valid).float() if X_valid is not None else None
-    y_valid_tensor = torch.tensor(y_valid).float() if y_valid is not None else None
-    return (
-        X_train_tensor,
-        y_train_tensor,
-        train_index,
-        X_valid_tensor,
-        y_valid_tensor,
-        valid_index,
-    )
-
-
-class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
-    def __init__(self, config: RNNConfig | None = None):
+class MoERNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
+    def __init__(self, config: MoERNNConfig | None = None) -> None:
         super().__init__()
-        self.config = config or RNNConfig()
+        self.config = config or MoERNNConfig()
         self.is_fit: bool = False
-        self.model: RNNModel | None = None
+        self.model: MoERNNModel | None = None
 
     @log_method()
     def fit(self, data: DatasetBundle) -> Self:
         if data.has_valid is None:
             raise ValueError("Model haven't got valid data")
 
-        data = data.copy()
+        self.log_params("params", self.config)
 
+        # split data for traing
+        data = data.copy()
+        if self.config.make_test:
+            self.log("making test")
+            split = self.config.test_frac
+            win = ExpandedWindowDB.from_db(
+                data,
+                nwin=1,
+                init_frac=split,
+                end_frac=1 - split,
+            )
+            data = win.get_window(0)
+
+        self.log_params("expert input:", *data.stats())
+
+        # prepare data for model
         (
             X_train_tensor,
             y_train_tensor,
@@ -61,18 +50,22 @@ class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
             X_valid_tensor,
             y_valid_tensor,
             valid_index,
-        ) = _prepare_data(data, self.config.model.lag)
+        ) = _prepare_data(data, self.config.exp_params.model.lag)
 
-        self.model = RNNModel(
+        # train model
+        exp_conf = self.config.exp_params
+
+        self.model = MoERNNModel(
             features_in=data.train.X.shape[-1],
-            lag=self.config.model.lag,
-            gru=self.config.model.gru,
-            decay=self.config.model.decay,
-            l2=self.config.model.l2,
-            lr=self.config.model.lr,
+            num_experts=self.config.n_exps,
+            gate_type=self.config.gate_type,
+            lag=exp_conf.model.lag,
+            gru=exp_conf.model.gru,
+            decay=exp_conf.model.decay,
+            lr=exp_conf.model.lr,
             use_scheduler=True,
-            min_lr=self.config.model.min_lr,
-            use_best_model=self.config.model.use_best_model,
+            min_lr=exp_conf.model.min_lr,
+            use_best_model=exp_conf.model.use_best_model,
         )
 
         self.model.evaluate(
@@ -83,11 +76,11 @@ class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
             train_index=train_index,
             valid_index=valid_index,
             verbose=True,
-            batch=self.config.trainer.batch,
-            epochs=self.config.trainer.epochs,
+            batch=exp_conf.trainer.batch,
+            epochs=exp_conf.trainer.epochs,
             device="cpu",
             fit_model=True,
-            early_stopping_rounds=self.config.trainer.early_stoping,
+            early_stopping_rounds=exp_conf.trainer.early_stoping,
         )
 
         self.is_fit = True
@@ -98,6 +91,10 @@ class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
         if not self.is_fit or self.model is None:
             raise ValueError("Model not fitted, make it first")
 
+        self.log_params("prediction input:", *data.stats())
+
+        # prepare data for model
+        exp_conf = self.config.exp_params
         data = data.copy()
         (
             X_train_tensor,
@@ -106,8 +103,9 @@ class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
             X_valid_tensor,
             y_valid_tensor,
             valid_index,
-        ) = _prepare_data(data, self.config.model.lag)
+        ) = _prepare_data(data, self.config.exp_params.model.lag)
 
+        # make predictions
         dict_result = self.model.evaluate(
             X_train_tensor,
             y_train_tensor,
@@ -116,8 +114,8 @@ class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
             train_index=train_index,
             valid_index=valid_index,
             verbose=True,
-            batch=self.config.trainer.batch,
-            epochs=self.config.trainer.epochs,
+            batch=exp_conf.trainer.batch,
+            epochs=exp_conf.trainer.epochs,
             device="cpu",
             fit_model=False,
         )

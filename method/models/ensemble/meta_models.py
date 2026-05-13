@@ -26,6 +26,7 @@ class MetaModelParams(BaseConfig):
 
 class MetaModelType(StrEnum):
     MEAN = "mean"
+    MEDIAN = "median"
     MSE_WEIGHTED = "mse_weighted"
     RIDGE = "ridge"
     LASSO = "lasso"
@@ -58,14 +59,14 @@ def time_decay_weights(
 class BaseEnsembleMeta(ABC):
     def __init__(self):
         super().__init__()
-        self.is_fitted = False
+        self.is_fit = False
 
     def fit(self, P: np.ndarray, y: np.ndarray) -> Self:
         """
         P: (n_samples, n_models)
         y: (n_samples,)
         """
-        self.is_fitted = True
+        self.is_fit = True
         return self
 
     @abstractmethod
@@ -83,13 +84,25 @@ class BaseEnsembleMeta(ABC):
 class MeanMeta(BaseEnsembleMeta, ClassLogger):
     @log_method()
     def fit(self, P: np.ndarray, y: np.ndarray):
-        self.is_fitted = True
+        self.is_fit = True
         return self
 
     @log_method()
     def transform(self, P):
-        assert self.is_fitted
+        assert self.is_fit
         return np.nanmean(P, axis=1)
+
+
+class MedianMeta(BaseEnsembleMeta, ClassLogger):
+    @log_method()
+    def fit(self, P: np.ndarray, y: np.ndarray):
+        self.is_fit = True
+        return self
+
+    @log_method()
+    def transform(self, P):
+        assert self.is_fit
+        return np.nanmedian(P, axis=1)
 
 
 class MSEWeightedMeta(BaseEnsembleMeta, ClassLogger):
@@ -106,13 +119,13 @@ class MSEWeightedMeta(BaseEnsembleMeta, ClassLogger):
         inv = 1.0 / (errors + self.eps)
         self.weights = inv / inv.sum()
 
-        self.is_fitted = True
+        self.is_fit = True
         self.log_params("weights:", self.weights)
         return self
 
     @log_method()
     def transform(self, P):
-        assert self.is_fitted
+        assert self.is_fit
         return P @ self.weights
 
 
@@ -131,13 +144,13 @@ class RidgeMeta(BaseEnsembleMeta, ClassLogger):
     def fit(self, P, y):
         self.weights = time_decay_weights(len(y), scheme=self.weights_type)
         self.model.fit(P, y, sample_weight=self.weights)
-        self.is_fitted = True
+        self.is_fit = True
         self.log_params("weights:", self.model.coef_)
         return self
 
     @log_method()
     def transform(self, P):
-        assert self.is_fitted
+        assert self.is_fit
         return self.model.predict(P)
 
 
@@ -156,19 +169,21 @@ class LassoMeta(BaseEnsembleMeta, ClassLogger):
     def fit(self, P, y):
         self.weights = time_decay_weights(len(y), scheme=self.weights_type)
         self.model.fit(P, y, sample_weight=self.weights)
-        self.is_fitted = True
+        self.is_fit = True
         self.log_params("weights:", self.model.coef_)
         return self
 
     @log_method()
     def transform(self, P):
-        assert self.is_fitted
+        assert self.is_fit
         return self.model.predict(P)
 
 
 def meta_model(strategy: MetaModelType, p: MetaModelParams) -> BaseEnsembleMeta:
     if strategy == MetaModelType.MEAN:
         return MeanMeta()
+    elif strategy == MetaModelType.MEDIAN:
+        return MedianMeta()
     elif strategy == MetaModelType.MSE_WEIGHTED:
         return MSEWeightedMeta(eps=p.eps)
     elif strategy == MetaModelType.RIDGE:

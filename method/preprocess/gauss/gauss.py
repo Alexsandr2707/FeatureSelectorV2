@@ -14,22 +14,34 @@ from logging_tools.logging_tools import ClassLogger, log_method
 logger = logging.getLogger(__name__)
 
 
+def _mask_big_nan_blocks(df: pd.DataFrame, max_gap: int) -> pd.DataFrame:
+    """Return mask for NaN runs larger than max_gap"""
+    mask = pd.DataFrame(False, index=df.index, columns=df.columns)
+
+    for col in df.columns:
+        is_na = df[col].isna()
+        group_id = (is_na != is_na.shift()).cumsum()
+        group_sizes = is_na.groupby(group_id).transform("sum")
+        mask[col] = is_na & (group_sizes > max_gap)
+
+    return mask
+
+
 def _build_model(cfg: GPRConfig) -> GaussianProcessRegressor:
     p = cfg.params
 
     if p.kernel == KernelType.MATERN:
-        base = Matern(p.length_scale, nu=p.nu)
+        base = Matern(nu=p.nu)
     elif p.kernel == KernelType.RBF:
-        base = RBF(p.length_scale)
+        base = RBF()
     else:
         raise ValueError("Undefined kernel type", p.kernel)
 
-    kernel = ConstantKernel(1.0) * base + WhiteKernel(p.noise_level)
+    kernel = ConstantKernel(1.0) * base + WhiteKernel()
 
     return GaussianProcessRegressor(
         kernel=kernel,
-        alpha=p.alpha,
-        normalize_y=True,
+        normalize_y=False,
         n_restarts_optimizer=p.n_restarts_optimizer,
     )
 
@@ -44,7 +56,10 @@ def _prepare_xy(data: Dataset, cfg: GPRConfig):
             {"time": np.arange(len(y), dtype=float)},
             index=y.index,
         )
-
+    else:
+        gen_index = X.index.intersection(y.index)
+        X = X.loc[gen_index]
+        y = y.loc[gen_index]
     return X, y
 
 
@@ -83,8 +98,12 @@ class GPR(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogger):
             self.log("transform train dataset")
             model = self.model_train
         elif dataset_type == "valid":
-            self.log("transform valid dataset")
-            model = self.model_valid
+            if self.config.interp_valid:
+                self.log("transform valid dataset")
+                model = self.model_valid
+            else:
+                self.log("skip valid dataset")
+                return data
         else:
             raise ValueError("Undefined dataset_type", dataset_type)
 
@@ -92,13 +111,29 @@ class GPR(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogger):
         y_res = y.copy()
 
         valid_X_mask = ~X.isna().any(axis=1)
-        miss_mask = y.isna().any(axis=1) & valid_X_mask
+        y_nan_mask = y.isna().any(axis=1)
+        if self.config.params.drop_big_gap:
+            big_nan_blocks = _mask_big_nan_blocks(y, self.config.params.max_gap).any(
+                axis=1
+            )
+        else:
+            big_nan_blocks = np.zeros(y.shape[0], dtype=bool)
+
+        miss_mask = y_nan_mask & valid_X_mask & ~big_nan_blocks
 
         if miss_mask.any() and model is not None:
-            preds = model.predict(X.loc[miss_mask])
-            y_res.loc[miss_mask, :] = cast(pd.Series, preds).reshape(-1, 1)
+            preds, stds = cast(
+                tuple[np.ndarray, np.ndarray],
+                model.predict(X.loc[miss_mask], return_std=True),
+            )
+            threshold = self.config.params.k_confidence * stds.mean()
+            preds = np.where(preds < threshold, preds, np.nan)  # drop unstable values
+            y_res.loc[miss_mask, :] = preds.reshape(-1, 1)
 
-        return data.replace(new_y=y_res).dropna(how="all")
+        return data.replace(
+            new_X=data.X.asfreq(self.config.params.freq),
+            new_y=y_res,
+        ).dropna(how="all")
 
     @log_method()
     def transform(self, data: DatasetBundle) -> DatasetBundle:

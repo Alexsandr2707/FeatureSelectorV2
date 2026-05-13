@@ -8,14 +8,16 @@ from method.core.config_base import BaseConfig
 from .base import ModelResults, SplitResults
 from .rnn.rnn import RNN, RNNConfig
 from .ensemble.ensemble import Ensemble, EnsembleConfig
+from .moe_rnn.moe_rnn import MoERNN, MoERNNConfig
 
 
 class ModelType(StrEnum):
     RNN = "rnn"
     ENSEMBLE = "ensemble"
+    MoERNN = "moernn"
 
 
-ModelParams = RNNConfig | EnsembleConfig
+ModelParams = RNNConfig | EnsembleConfig | MoERNNConfig
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,8 @@ def get_model_type(model_type: ModelType):
         return RNNConfig
     elif model_type == ModelType.ENSEMBLE:
         return EnsembleConfig
+    elif model_type == ModelType.MoERNN:
+        return MoERNNConfig
     else:
         raise ValueError("Undefined model type", model_type)
 
@@ -55,5 +59,7 @@ def get_model(model_type: ModelType, params: ModelParams):
         return RNN(params)
     elif model_type == ModelType.ENSEMBLE and isinstance(params, EnsembleConfig):
         return Ensemble(params)
+    elif model_type == ModelType.MoERNN and isinstance(params, MoERNNConfig):
+        return MoERNN(params)
     else:
         raise ValueError("Undefined model type or config")

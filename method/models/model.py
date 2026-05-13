@@ -15,12 +15,12 @@ class Model(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
         self.model = get_model(self.config.model_type, self.config.params)
 
     def fit(self, data: DatasetBundle) -> Self:
+        self.log("training", level=logging.INFO)
         self.model.fit(data)
+        self.log("trained", level=logging.INFO)
         return self
 
     @log_method()
     def transform(self, data: DatasetBundle) -> ModelResults:
-        self.log("training", level=logging.INFO)
         result = self.model.transform(data)
-        self.log("trained", level=logging.INFO)
         return result

@@ -67,7 +67,7 @@ class BaseData(torch.utils.data.Dataset):
 
 class BaseModel(nn.Module):
     def count(self):
-        return sum(dict((p.data_ptr(), p.numel()) for p in self.parameters()).values())
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
     def iterate(self, data, func, **kwargs):
         store = []
@@ -79,11 +79,19 @@ class BaseModel(nn.Module):
         self.optimizer.zero_grad()
         pred = self(X)
         loss = self.loss(pred, y)
+
         if penalty_func is not None:
             loss = loss + penalty_func()
+
         loss.backward()
+
+        # torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=5.0)
+
         item = loss.item()
-        np.isnan(item) or self.optimizer.step()
+
+        if not np.isnan(item):
+            self.optimizer.step()
+
         return pred.detach(), item
 
     def epoch(self, data, penalty_func=None):
@@ -102,14 +110,131 @@ class BaseModel(nn.Module):
         self.eval()
         running_loss = 0
         counter = 0
-        for portion in data:
-            X, y = portion
-            loss = self.loss(self(X), y).item()
-            if not np.isnan(loss):
-                running_loss += loss
-                counter += 1
+        with torch.no_grad():
+            for portion in data:
+                X, y = portion
+                loss = self.loss(self(X), y).item()
+                if not np.isnan(loss):
+                    running_loss += loss
+                    counter += 1
         assert counter != 0, "Model has gone NaN! - valid"
         return running_loss / counter
+
+    def fit(
+        self,
+        train,
+        valid=None,
+        epochs=10,
+        early_stopping_rounds=3,
+        restore=True,
+        verbose=True,
+        penalty_func=None,
+    ):
+        best_valid = float("inf")
+        counter = 0
+        path = PATH % self.__class__.__name__
+
+        for epoch in range(epochs):
+            if counter > early_stopping_rounds:
+                break
+
+            train_ = self.epoch(
+                train() if callable(train) else train, penalty_func=penalty_func
+            )
+            if valid is None:
+                continue
+
+            valid_ = self.valid(valid() if callable(valid) else valid)
+
+            if valid_ < best_valid:
+                counter = 0
+                best_valid = valid_
+                torch.save(self.state_dict(), path)
+            else:
+                counter += 1
+
+            if hasattr(self, "scheduler"):
+                self.scheduler.step()
+
+            if verbose:
+                lr = self.optimizer.param_groups[0]["lr"]
+                logger.debug(
+                    f"epoch {epoch}: train: {train_:1.4f}, lr: {lr:.3e}, valid: {valid_:1.4f}, best_valid: {best_valid:1.4f}"
+                )
+
+        if valid and restore:
+            self.load_state_dict(torch.load(path))
+
+    def true_pred(self, X, y):
+        return y.cpu().numpy(), self(X).cpu().detach().numpy()
+
+    def predict(self, data, **kwargs):
+        self.eval()
+        with torch.no_grad():
+            result = self.iterate(data, self.true_pred, **kwargs)
+        return np.concatenate([x[0] for x in result]), np.concatenate(
+            [x[1] for x in result]
+        )
+
+
+class BaseModelEMA(BaseModel):
+    def __init__(self, ema_decay=0.999, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ema_decay = ema_decay
+        self.ema_shadow = {}
+        self.ema_backup = {}
+        self.ema_initialized = False
+
+    def _init_ema(self):
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                self.ema_shadow[name] = param.data.clone().detach()
+        self.ema_initialized = True
+
+    def _update_ema(self):
+        if not self.ema_initialized:
+            self._init_ema()
+            return
+
+        with torch.no_grad():
+            for name, param in self.named_parameters():
+                if param.requires_grad:
+                    # shadow = decay * shadow + (1 - decay) * param
+                    self.ema_shadow[name].sub_(
+                        (1.0 - self.ema_decay) * (self.ema_shadow[name] - param.data)
+                    )
+
+    def apply_ema(self):
+        if not self.ema_initialized:
+            return
+
+        self.ema_backup = {}
+        with torch.no_grad():
+            for name, param in self.named_parameters():
+                if param.requires_grad:
+                    self.ema_backup[name] = param.data.clone().detach()
+                    param.data.copy_(self.ema_shadow[name])
+
+    def restore_ema(self):
+        if not self.ema_backup:
+            return
+
+        with torch.no_grad():
+            for name, param in self.named_parameters():
+                if param.requires_grad:
+                    param.data.copy_(self.ema_backup[name])
+        self.ema_backup = {}
+
+    def load_state_dict(self, *args, **kwargs):
+        res = super().load_state_dict(*args, **kwargs)
+        self._init_ema()
+        return res
+
+    def batch(self, X, y, penalty_func=None):
+        pred, item = super().batch(X, y, penalty_func=penalty_func)
+        if not np.isnan(item):
+            self._update_ema()
+        return pred, item
 
     def fit(
         self,
@@ -122,47 +247,50 @@ class BaseModel(nn.Module):
         verbose=True,
         penalty_func=None,
     ):
-        best_valid = 10e10
+        best_valid = float("inf")
         counter = 0
         path = PATH % self.__class__.__name__
+
         for epoch in range(epochs):
             if counter > early_stopping_rounds:
                 break
-            if verbose and (clear is not None):
-                if epoch % clear == 0:
-                    clear_output(wait=True)
-            start = datetime.now()
+            if verbose and (clear is not None) and (epoch % clear == 0):
+                pass
+
             train_ = self.epoch(
                 train() if callable(train) else train, penalty_func=penalty_func
             )
-            time = datetime.now() - start
+
             if valid is None:
                 continue
+
+            self.apply_ema()
+
             valid_ = self.valid(valid() if callable(valid) else valid)
+
             if valid_ < best_valid:
                 counter = 0
                 best_valid = valid_
                 torch.save(self.state_dict(), path)
             else:
                 counter += 1
+
+            self.restore_ema()
+
             if hasattr(self, "scheduler"):
                 self.scheduler.step()
 
             if verbose:
-                level = logging.DEBUG
-                logger.log(
-                    level,
-                    f"epoch {epoch}: train: {train_:1.4f}, lr: {self.optimizer.param_groups[0]['lr']:.3e}, valid: {valid_:1.4f}, best_valid: {best_valid:1.4f}",
+                lr = self.optimizer.param_groups[0]["lr"]
+                logger.debug(
+                    f"epoch {epoch}: train: {train_:1.4f}, lr: {lr:.3e}, valid: {valid_:1.4f}, best_valid: {best_valid:1.4f}"
                 )
+
         if valid and restore:
             self.load_state_dict(torch.load(path))
 
-    def true_pred(self, X, y):
-        return y.cpu().numpy(), self(X).cpu().detach().numpy()
-
     def predict(self, data, **kwargs):
-        self.eval()
-        result = self.iterate(data, self.true_pred, **kwargs)
-        return np.concatenate([x[0] for x in result]), np.concatenate(
-            [x[1] for x in result]
-        )
+        self.apply_ema()
+        res = super().predict(data, **kwargs)
+        self.restore_ema()
+        return res

@@ -23,5 +23,6 @@ class SmootherGroup(GroupConfig, SwitchConfig):
 
 @dataclass(frozen=True)
 class SmootherConfig(SwitchConfig, XyConfig):
+    smooth_valid: bool = False
     X: SmootherGroup = field(default_factory=SmootherGroup)
     y: SmootherGroup = field(default_factory=SmootherGroup)

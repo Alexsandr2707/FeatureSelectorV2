@@ -45,11 +45,10 @@ class Ensemble(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
         self.config = config or EnsembleConfig()
         self.estimators: list[ModelProtocol] = []
         self.meta: BaseEnsembleMeta
-        self.is_fitted: bool = False
+        self.is_fit: bool = False
 
     @log_method()
     def fit(self, data: DatasetBundle) -> Self:
-        self.log("training", level=logging.INFO)
         self.log_params("params", self.config)
 
         wins: list[DatasetBundle] = []
@@ -94,13 +93,12 @@ class Ensemble(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
             valid_preds, valid_true, self.meta, fit_model=True
         )
 
-        self.is_fitted = True
-        self.log("trained", level=logging.INFO)
+        self.is_fit = True
         return self
 
     @log_method()
     def transform(self, data: DatasetBundle) -> ModelResults:
-        if not self.is_fitted:
+        if not self.is_fit:
             raise RuntimeError("Model not fitted, make fit first")
 
         result: ModelResults | None = None
@@ -127,6 +125,4 @@ class Ensemble(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
             valid_pred=valid_res,
             valid_true=valid_true,
         )
-
-        self.log("trained", level=logging.INFO)
         return result

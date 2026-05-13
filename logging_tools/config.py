@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime
 import re
 from typing import Literal
+import os
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
@@ -48,6 +49,7 @@ def setup_logging(
     file_level: LogLevel = "DEBUG",
     time_file_level: LogLevel = "DEBUG",
 ) -> None:
+
     LOG_DIR.mkdir(exist_ok=True, parents=True)
     keep_last_n_time_files(LOG_DIR, n=TIME_FILE_COUNT)
     with open(FILE_PATH, "w"):
@@ -106,6 +108,8 @@ def setup_logging(
         "loggers": {
             "matplotlib": {"level": "WARNING", "propagate": True},
             "PIL": {"level": "WARNING", "propagate": True},
+            "bnlearn": {"level": "WARNING", "propagate": True},
+            "graphviz": {"level": "WARNING", "propagate": True},
         },
     }
 
