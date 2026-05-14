@@ -15,6 +15,7 @@ from .split.splitter import SplitterConfig, Splitter
 from .differ.differ import DifferConfig, Differ
 from .smoother.smoother import SmootherConfig, Smoother
 from .shifter.shifter import ShifterConfig, Shifter
+from .lab_history.lab_history import LabHistoryConfig, LabHistory
 from .loess.loess import LoessConfig, Loess
 from .knn.knn import KNNConfig, KNN
 from .gauss.gauss import GPRConfig, GPR
@@ -34,6 +35,7 @@ class StepName(StrEnum):
     SCALER = "scaler"
     FEATURE_SELECTOR = "feature_selector"
     SHIFTER = "shifter"
+    LAB_HISTORY = "lab_history"
 
 
 STEP_NAMES = [s.value for s in StepName]
@@ -53,23 +55,17 @@ STEPS_CLASS: dict[StepName, Any] = {
     StepName.SCALER: Scaler,
     StepName.FEATURE_SELECTOR: FeatureSelector,
     StepName.SHIFTER: Shifter,
+    StepName.LAB_HISTORY: LabHistory,
 }
 
 
 DEFAULT_STEPS_ORDER: list[StepName] = [
-    StepName.SHIFTER,
     StepName.DROP_INTERVALS,
-    StepName.DIFFER,
-    StepName.OUTLIERS,
     StepName.FILTER,
-    StepName.INTERPOLATION,
-    StepName.KNN,
-    StepName.GPR,
-    StepName.LOESS,
-    StepName.SMOOTHER,
+    StepName.FEATURE_SELECTOR,
+    StepName.SHIFTER,
     StepName.SPLITTER,
     StepName.SCALER,
-    StepName.FEATURE_SELECTOR,
 ]
 
 
@@ -85,6 +81,7 @@ class StepsConfig(BaseConfig):
     differ: DifferConfig = field(default_factory=DifferConfig)
     smoother: SmootherConfig = field(default_factory=SmootherConfig)
     shifter: ShifterConfig = field(default_factory=ShifterConfig)
+    lab_history: LabHistoryConfig = field(default_factory=LabHistoryConfig)
     loess: LoessConfig = field(default_factory=LoessConfig)
     knn: KNNConfig = field(default_factory=KNNConfig)
     gpr: GPRConfig = field(default_factory=GPRConfig)
@@ -128,6 +125,8 @@ class StepsConfig(BaseConfig):
             return self.splitter
         elif name == StepName.SHIFTER:
             return self.shifter
+        elif name == StepName.LAB_HISTORY:
+            return self.lab_history
         else:
             raise ValueError("Undefined step name: ", name)
 
