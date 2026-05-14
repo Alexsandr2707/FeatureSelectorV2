@@ -28,9 +28,12 @@ class RNNModel(BaseModel, Evaluate):
 
         self.lag = lag
         self.l2 = l2
+        self.decay = decay
+        self.lr = lr
         self.use_scheduler = use_scheduler
         self.min_lr = min_lr
         self.use_best_model = use_best_model
+        self.features_out = features_out
 
         try:
             units, num_layers = gru
@@ -59,10 +62,26 @@ class RNNModel(BaseModel, Evaluate):
             weight_decay=decay,
         )
 
+    def reset_optimizer(self):
+        self.optimizer = optim.AdamW(
+            self.parameters(),
+            lr=self.lr,
+            weight_decay=self.decay,
+        )
+
+    def replace_head(self, features_out):
+        old_head = self.feed[-1]
+        if not isinstance(old_head, nn.Linear):
+            raise TypeError("RNNModel head must be a Linear layer")
+
+        device = old_head.weight.device
+        new_head = nn.Linear(old_head.in_features, features_out).to(device)
+        self.feed[-1] = new_head
+        self.features_out = features_out
+
     @staticmethod
     def _init_weights(modules):
         for m in modules:
-            # 1. Инициализация кастомного GRU_state
             if isinstance(m, GRU_state):
                 for name, param in m.named_parameters():
                     if "weight_hh" in name:
@@ -71,18 +90,6 @@ class RNNModel(BaseModel, Evaluate):
                         nn.init.xavier_uniform_(param)
                     elif "bias" in name:
                         nn.init.zeros_(param)
-
-            # elif isinstance(m, nn.Linear):
-            #     # Вместо reset_parameters() используем Xavier
-            #     nn.init.xavier_uniform_(m.weight)
-            #     if m.bias is not None:
-            #         nn.init.zeros_(m.bias)
-            #     # m.reset_parameters()
-
-            # elif isinstance(m, nn.LayerNorm):
-            #     # standard initialization
-            #     nn.init.constant_(m.weight, 1.0)
-            #     nn.init.constant_(m.bias, 0)
 
     # def penalty(self):
     #     for W in self.feed[0].parameters():
@@ -95,12 +102,6 @@ class RNNModel(BaseModel, Evaluate):
         return self.feed(x)
 
     def evaluate(self, X_train, y_train, *args, fit_model=True, device="cpu", **kwargs):
-        # if fit_model:
-        #     self.corr = CorrelationLag(
-        #         maxlag=self.lag, blur=False, dropna=True, corr="spearman"
-        #     )
-        #     self.corr.fit(X_train[:, -1], y_train[:, -1])
-        #     self.spearman = Tensor(self.corr.lags.abs().max().values).to(device)
 
         return Evaluate.evaluate(
             self,

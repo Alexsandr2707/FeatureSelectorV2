@@ -40,6 +40,19 @@ def _prepare_data(data: DatasetBundle, lag: int):
     )
 
 
+def _make_pretrain_dataset(data: Dataset, horizon: int) -> Dataset:
+    X = data.X.copy()
+    y = X.shift(-horizon)
+    y.columns = [f"__pretrain_target__{col}" for col in X.columns]
+    return data.replace(new_X=X, new_y=y).dropna(how="all")
+
+
+def _prepare_pretrain_bundle(data: DatasetBundle, horizon: int) -> DatasetBundle:
+    train = _make_pretrain_dataset(data.train, horizon)
+    valid = _make_pretrain_dataset(data.valid, horizon) if data.valid else None
+    return data.replace(new_train=train, new_valid=valid)
+
+
 class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
     def __init__(self, config: RNNConfig | None = None):
         super().__init__()
@@ -52,8 +65,9 @@ class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
         if data.has_valid is None:
             raise ValueError("Model haven't got valid data")
 
-        data = data.copy()
+        self.log_params("model config:", self.config)
 
+        data = data.copy()
         (
             X_train_tensor,
             y_train_tensor,
@@ -63,8 +77,12 @@ class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
             valid_index,
         ) = _prepare_data(data, self.config.model.lag)
 
+        features_out = data.train.y.shape[-1]
         self.model = RNNModel(
             features_in=data.train.X.shape[-1],
+            features_out=(
+                data.train.X.shape[-1] if self.config.pretrain.enabled else features_out
+            ),
             lag=self.config.model.lag,
             gru=self.config.model.gru,
             decay=self.config.model.decay,
@@ -74,6 +92,37 @@ class RNN(BasePipelineStep[DatasetBundle, ModelResults], ClassLogger):
             min_lr=self.config.model.min_lr,
             use_best_model=self.config.model.use_best_model,
         )
+
+        if self.config.pretrain.enabled:
+            pretrain_data = _prepare_pretrain_bundle(
+                data, horizon=self.config.pretrain.horizon
+            )
+            (
+                X_pretrain_tensor,
+                y_pretrain_tensor,
+                pretrain_index,
+                X_prevalid_tensor,
+                y_prevalid_tensor,
+                prevalid_index,
+            ) = _prepare_data(pretrain_data, self.config.model.lag)
+
+            self.model.evaluate(
+                X_pretrain_tensor,
+                y_pretrain_tensor,
+                X_valid=X_prevalid_tensor,
+                y_valid=y_prevalid_tensor,
+                train_index=pretrain_index,
+                valid_index=prevalid_index,
+                verbose=True,
+                batch=self.config.pretrain.trainer.batch,
+                epochs=self.config.pretrain.trainer.epochs,
+                device="cpu",
+                fit_model=True,
+                early_stopping_rounds=self.config.pretrain.trainer.early_stoping,
+            )
+
+            self.model.replace_head(features_out=features_out)
+            self.model.reset_optimizer()
 
         self.model.evaluate(
             X_train_tensor,
