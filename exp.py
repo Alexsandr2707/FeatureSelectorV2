@@ -1,6 +1,6 @@
 import logging
 
-from data_configs.base_raw_data import EXECUTE_CONFIG
+from data_configs.base_configs.base_raw_data import EXECUTE_CONFIG
 from experiments import (
     ParamsGrid,
     basic_experiment,

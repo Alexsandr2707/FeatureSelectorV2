@@ -76,14 +76,16 @@ def replace_exec_param(
     raise ValueError("Undefined output type", output)
 
 
-def inverse_transform_results(results: ModelResults, scaler: Any) -> ModelResults:
-    def scale_func(x, index):
+def inverse_transform_results(
+    results: ModelResults, train_scaler: Any, valid_scaler: Any
+) -> ModelResults:
+    def scale_func(x, index, scaler):
         res = scaler.inverse_transform(x)
         res = pd.DataFrame(res, index=index)
         return res
 
-    train_fn = lambda x: scale_func(x, results.train.index)
-    valid_fn = lambda x: scale_func(x, results.valid.index)
+    train_fn = lambda x: scale_func(x, results.train.index, train_scaler)
+    valid_fn = lambda x: scale_func(x, results.valid.index, valid_scaler)
 
     new_train = results.train.transform_all(fn=train_fn)
     new_valid = results.valid.transform_all(fn=valid_fn)

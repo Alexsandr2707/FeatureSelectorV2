@@ -4,6 +4,7 @@ import math
 import numpy as np
 from typing import Literal, Any
 import scipy.stats as stats
+from copy import deepcopy
 
 from method.datasets import DatasetBundle
 from method.models.model import ModelResults
@@ -104,22 +105,40 @@ def plot_data_compare(
     plt.close()
 
 
+def _unfitted_scaler_copy(scaler):
+    if hasattr(scaler, "unfitted_copy"):
+        return scaler.unfitted_copy()
+    return deepcopy(scaler)
+
+
 def plot_prep_data(
     data_raw: DatasetBundle,
     data_prep: DatasetBundle,
     features_title: str | None = None,
     target_title: str | None = None,
+    inverse_scale: bool = False,
 ):
     features_title = features_title if features_title is not None else "Features"
     target_title = target_title if target_title is not None else "Target"
 
     ds_prep = data_prep.merge_data().train
-    ds_raw = data_raw.train.replace(new_y_scaler=ds_prep.y_scaler)
-    y_raw_scaled = ds_raw.scale(scale_y=True).y
-    y_prep_scaled = ds_prep.y
-
     plot_data(ds_prep.X.dropna(), plot_type="plot", title=features_title)
-    plot_data_compare(y_raw_scaled.dropna(), y_prep_scaled.dropna(), title=target_title)
+
+    if inverse_scale:
+        y_scaler = ds_prep.y_scaler
+        y_raw = data_raw.train.y
+        y_prep_inv_scaled = ds_prep.scale(scale_y=True, how="inverse").y
+        plot_data_compare(
+            y_raw.dropna(), y_prep_inv_scaled.dropna(), title=target_title
+        )
+    else:
+        y_scaler = _unfitted_scaler_copy(ds_prep.y_scaler)
+        ds_raw = data_raw.train.replace(new_y_scaler=y_scaler)
+        y_raw_scaled = ds_raw.scale(scale_y=True).y
+        y_prep_scaled = ds_prep.y
+        plot_data_compare(
+            y_raw_scaled.dropna(), y_prep_scaled.dropna(), title=target_title
+        )
 
 
 def plot_results(

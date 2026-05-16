@@ -3,7 +3,7 @@ from typing import cast
 
 import pandas as pd
 
-from data_configs.base_raw_data import EXECUTE_CONFIG
+from data_configs.base_configs.base_raw_data import EXECUTE_CONFIG
 
 from .basic import basic_experiment
 from .utils import replace_exec_param

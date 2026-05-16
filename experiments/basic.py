@@ -2,7 +2,7 @@ import logging
 import time
 from typing import cast
 
-from data_configs.base_raw_data import EXECUTE_CONFIG
+from data_configs.base_configs.base_raw_data import EXECUTE_CONFIG
 from method.datasets import DatasetConfig, LoadDatasetStep
 from method.models.model import Model, ModelConfig
 from method.preprocess.config import PreprocessConfig
@@ -21,9 +21,11 @@ logger = logging.getLogger(__name__)
 
 def basic_experiment(
     make_plot_prep_data: bool = False,
+    inverse_prep_data_scale: bool = False,
     make_plot_bn_tree: bool = False,
     make_plot_bn_dag: bool = False,
     make_plot_results: bool = True,
+    inverse_results_scale: bool = True,
     make_logs: bool = True,
     exec_config: dict | None = None,
     cone: float | None = None,
@@ -55,7 +57,7 @@ def basic_experiment(
     data_prep = preprocessor.fit_transform(data_raw)
 
     if make_plot_prep_data:
-        plot_prep_data(data_raw, data_prep)
+        plot_prep_data(data_raw, data_prep, inverse_scale=inverse_prep_data_scale)
 
     if make_plot_bn_tree or make_plot_bn_dag:
         from method.preprocess.feature_selector.bayes import BayesTransformer
@@ -81,12 +83,19 @@ def basic_experiment(
         duration,
     )
 
-    try:
-        y_scaler = preprocessor.get_step("scaler").scaler_y  # type: ignore
-        result = inverse_transform_results(result, y_scaler)
-        cone = 3.5 if cone is None else cone
-    except Exception:
-        make_logs_fn(make_logs, logger, logging.WARNING, "Bad scaling")
+    if inverse_results_scale:
+        try:
+            train_scaler = data_prep.train.y_scaler
+            if data_prep.valid is None:
+                valid_scaler = lambda x: x
+            else:
+                valid_scaler = data_prep.valid.y_scaler
+            result = inverse_transform_results(result, train_scaler, valid_scaler)
+            cone = 3.5 if cone is None else cone
+        except Exception as e:
+            make_logs_fn(make_logs, logger, logging.WARNING, "Bad scaling", e)
+            cone = 0.2 if cone is None else cone
+    else:
         cone = 0.2 if cone is None else cone
 
     if make_plot_results:

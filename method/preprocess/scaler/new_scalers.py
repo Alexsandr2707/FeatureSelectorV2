@@ -43,6 +43,9 @@ class RollingStandardScaler:
     def fit_transform(self, X: pd.DataFrame):
         return self.fit(X).transform(X)
 
+    def unfitted_copy(self):
+        return self.__class__(window=self.window, eps=self.eps)
+
 
 class RollingRobustScaler:
     def __init__(self, window: int, eps: float = 1e-8):
@@ -103,3 +106,6 @@ class RollingRobustScaler:
 
     def fit_transform(self, X: pd.DataFrame):
         return self.fit(X).transform(X)
+
+    def unfitted_copy(self):
+        return self.__class__(window=self.window, eps=self.eps)

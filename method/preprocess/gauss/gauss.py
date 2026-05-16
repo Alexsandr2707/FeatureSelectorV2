@@ -127,7 +127,8 @@ class GPR(BasePipelineStep[DatasetBundle, DatasetBundle], ClassLogger):
                 model.predict(X.loc[miss_mask], return_std=True),
             )
             threshold = self.config.params.k_confidence * stds.mean()
-            preds = np.where(preds < threshold, preds, np.nan)  # drop unstable values
+            keep_mask = stds < threshold
+            preds = np.where(keep_mask, preds, np.nan)  # drop unstable values
             y_res.loc[miss_mask, :] = preds.reshape(-1, 1)
 
         return data.replace(

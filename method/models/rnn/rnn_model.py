@@ -18,7 +18,7 @@ class RNNModel(BaseModel, Evaluate):
         gru=(8, 1),
         decay=0.01,
         l2=0.5,
-        lr=1e-3,
+        lr=1e-2,
         use_scheduler=True,
         min_lr=1e-4,
         use_best_model=True,
