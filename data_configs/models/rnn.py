@@ -58,23 +58,46 @@ EXECUTE_CONFIG = {
         },
     },
     "model": {
-        "model_type": "rnn",
+        # "model_type": "rnn",
+        # "params": {
+        #     "pretrain": {
+        #         "enabled": False,
+        #     },
+        #     "trainer": {
+        #         "epochs": 200,
+        #         "batch": 128,
+        #         "early_stoping": 200,
+        #     },
+        #     "model": {
+        #         "lag": 48,
+        #         "gru": [16, 1],
+        #         "decay": 0.01,
+        #         "lr": 1e-2,
+        #         "min_lr": 1e-2,
+        #         "use_best_model": True,
+        #     },
+        # },
+        "model_type": "ensemble",
         "params": {
-            "pretrain": {
-                "enabled": False,
-            },
-            "trainer": {
-                "epochs": 200,
-                "batch": 128,
-                "early_stoping": 200,
-            },
-            "model": {
-                "lag": 48,
-                "gru": [16, 1],
-                "decay": 0.01,
-                "lr": 1e-2,
-                "min_lr": 1e-2,
-                "use_best_model": True,
+            "est_type": "rnn",
+            "n_est": 1,
+            "meta_model": "mean",
+            "split_method": "expanded_window",  # expanded_window, basic
+            "split_method_params": {"init_frac": 0.8, "end_frac": 0.2},
+            "est_params": {
+                "trainer": {
+                    "epochs": 200,
+                    "batch": 128,
+                    "early_stoping": 200,
+                },
+                "model": {
+                    "lag": 48,
+                    "gru": [16, 1],
+                    "decay": 0.01,
+                    "lr": 1e-2,
+                    "min_lr": 1e-2,
+                    "use_best_model": True,
+                },
             },
         },
     },

@@ -1,15 +1,17 @@
-import pandas as pd
 import logging
+from typing import Any, Self, cast
+
+import pandas as pd
 import torch
-from typing import Any, cast, Self
+
+from logging_tools.logging_tools import ClassLogger, log_method
+from method.core.pipeline import BasePipelineStep
+from method.datasets import Dataset, DatasetBundle
 
 from ..base import ModelResults, SplitResults
 from .config import RNNConfig
 from .rnn_model import RNNModel
 from .vector import sliding_window
-from method.datasets import Dataset, DatasetBundle
-from method.core.pipeline import BasePipelineStep
-from logging_tools.logging_tools import ClassLogger, log_method
 
 logger = logging.getLogger(__name__)
 

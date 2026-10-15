@@ -7,23 +7,25 @@ from method.datasets import DatasetBundle
 from method.core.config_base import BaseConfig
 from .base import ModelResults, SplitResults
 from .rnn.rnn import RNN, RNNConfig
+from .gru_autoencoder.gru_autoencoder import GRUAutoencoder, GRUAutoencoderConfig
 from .ensemble.ensemble import Ensemble, EnsembleConfig
 from .moe_rnn.moe_rnn import MoERNN, MoERNNConfig
 
 
 class ModelType(StrEnum):
     RNN = "rnn"
+    GRU_AUTOENCODER = "gru_autoencoder"
     ENSEMBLE = "ensemble"
     MoERNN = "moernn"
 
 
-ModelParams = RNNConfig | EnsembleConfig | MoERNNConfig
+ModelParams = RNNConfig | GRUAutoencoderConfig | EnsembleConfig | MoERNNConfig
 
 
 @dataclass(frozen=True)
 class ModelConfig(BaseConfig):
     model_type: ModelType = ModelType.RNN
-    params: RNNConfig = field(default_factory=RNNConfig)
+    params: ModelParams = field(default_factory=RNNConfig)
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
@@ -46,6 +48,8 @@ class ModelConfig(BaseConfig):
 def get_model_type(model_type: ModelType):
     if model_type == ModelType.RNN:
         return RNNConfig
+    elif model_type == ModelType.GRU_AUTOENCODER:
+        return GRUAutoencoderConfig
     elif model_type == ModelType.ENSEMBLE:
         return EnsembleConfig
     elif model_type == ModelType.MoERNN:
@@ -57,6 +61,10 @@ def get_model_type(model_type: ModelType):
 def get_model(model_type: ModelType, params: ModelParams):
     if model_type == ModelType.RNN and isinstance(params, RNNConfig):
         return RNN(params)
+    elif model_type == ModelType.GRU_AUTOENCODER and isinstance(
+        params, GRUAutoencoderConfig
+    ):
+        return GRUAutoencoder(params)
     elif model_type == ModelType.ENSEMBLE and isinstance(params, EnsembleConfig):
         return Ensemble(params)
     elif model_type == ModelType.MoERNN and isinstance(params, MoERNNConfig):

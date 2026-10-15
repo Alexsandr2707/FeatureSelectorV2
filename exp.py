@@ -8,10 +8,10 @@ from experiments import (
     get_exec_params,
     grid_search,
     inverse_transform_results,
+    metrics_summary,
     replace_exec_param,
     seeds_experiment,
     set_seeds,
-    metrics_summary,
 )
 from experiments.utils import make_logs as _make_logs
 from logging_tools.config import setup_logging
@@ -23,7 +23,6 @@ DATASET_CONFIG = DatasetConfig.from_dict(EXECUTE_CONFIG["dataset"])
 __all__ = [
     "DATASET_CONFIG",
     "EXECUTE_CONFIG",
-    "setup_logging",
     "ParamsGrid",
     "_make_logs",
     "basic_experiment",
@@ -31,10 +30,11 @@ __all__ = [
     "get_exec_params",
     "grid_search",
     "inverse_transform_results",
+    "metrics_summary",
     "replace_exec_param",
     "seeds_experiment",
     "set_seeds",
-    "metrics_summary",
+    "setup_logging",
 ]
 
 

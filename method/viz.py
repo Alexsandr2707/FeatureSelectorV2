@@ -10,6 +10,7 @@ from method.datasets import DatasetBundle
 from method.models.model import ModelResults
 
 PlotType = Literal["plot", "scatter", "hist", "plot_scatter"]
+CorrMethod = Literal["pearson", "kendall", "spearman"]
 DEFAULT_FIG_SIZE = (12, 8)
 
 
@@ -105,6 +106,40 @@ def plot_data_compare(
     plt.close()
 
 
+def plot_feature_correlations(
+    data: pd.DataFrame,
+    method: CorrMethod = "pearson",
+    title: str | None = None,
+):
+    numeric_data = data.select_dtypes(include=[np.number])
+    if numeric_data.empty:
+        raise ValueError("data must contain at least one numeric feature")
+
+    corr = numeric_data.corr(method=method)
+
+    fig, ax = plt.subplots(figsize=DEFAULT_FIG_SIZE)
+    image = ax.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+    cbar = fig.colorbar(image, ax=ax)
+    cbar.set_label("Correlation")
+
+    ax.set_xticks(np.arange(len(corr.columns)), labels=corr.columns)
+    ax.set_yticks(np.arange(len(corr.index)), labels=corr.index)
+    ax.tick_params("x", rotation=45)
+
+    for i in range(len(corr.index)):
+        for j in range(len(corr.columns)):
+            ax.text(j, i, f"{corr.iloc[i, j]:.2f}", ha="center", va="center")
+
+    if title is not None:
+        ax.set_title(title)
+
+    plt.tight_layout()
+    plt.show()
+    plt.close(fig)
+
+    return fig, ax
+
+
 def _unfitted_scaler_copy(scaler):
     if hasattr(scaler, "unfitted_copy"):
         return scaler.unfitted_copy()
@@ -123,22 +158,19 @@ def plot_prep_data(
 
     ds_prep = data_prep.merge_data().train
     plot_data(ds_prep.X.dropna(), plot_type="plot", title=features_title)
+    plot_feature_correlations(ds_prep.join_data(), title=features_title)
 
     if inverse_scale:
         y_scaler = ds_prep.y_scaler
         y_raw = data_raw.train.y
-        y_prep_inv_scaled = ds_prep.scale(scale_y=True, how="inverse").y
-        plot_data_compare(
-            y_raw.dropna(), y_prep_inv_scaled.dropna(), title=target_title
-        )
+        y_prep = ds_prep.scale(scale_y=True, how="inverse").y
     else:
         y_scaler = _unfitted_scaler_copy(ds_prep.y_scaler)
         ds_raw = data_raw.train.replace(new_y_scaler=y_scaler)
-        y_raw_scaled = ds_raw.scale(scale_y=True).y
-        y_prep_scaled = ds_prep.y
-        plot_data_compare(
-            y_raw_scaled.dropna(), y_prep_scaled.dropna(), title=target_title
-        )
+        y_raw = ds_raw.scale(scale_y=True).y
+        y_prep = ds_prep.y
+
+    plot_data_compare(y_raw.dropna(), y_prep.dropna(), title=target_title)
 
 
 def plot_results(

@@ -66,7 +66,7 @@ class MoERNNModel(BaseModel, Evaluate):
         # Decides which expert to trust based on the last step
         if self.gate_type == GateType.TRAINABLE:
             self.gate = nn.Sequential(
-                nn.Linear(features_in, units),
+                nn.Linear(features_in, self.num_experts),
                 nn.ReLU(),
                 nn.Linear(units, self.num_experts),
                 nn.Softmax(dim=1),
